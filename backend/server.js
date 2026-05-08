@@ -1,13 +1,19 @@
-
-const mongoose = require('mongoose');
+// server.js
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/products');
+const storeRoutes = require('./routes/stores');
+const userRoutes = require('./routes/user');
+const dealsRoutes = require('./routes/deals');
 
 const app = express();
-const uri = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5001;
-const clientOptions = { };
 
 // Middleware
 app.use(cors());
@@ -15,27 +21,23 @@ app.use(express.json());
 
 // Database connection
 mongoose.set('debug', true);
-mongoose.connect(uri, clientOptions)
+mongoose.connect(process.env.MONGODB_URI, {})
     .then(() => {
         console.log('Connected to MongoDB');
-        console.log('Database name:', mongoose.connection.db.databaseName); // Logs the exact database name
-        console.log('Host:', mongoose.connection.host);                     // Logs the host (cluster)
-        console.log('Port:', mongoose.connection.port);                     // Logs the port, if available
+        console.log('Database name:', mongoose.connection.db.databaseName);
+        console.log('Host:', mongoose.connection.host);
+        console.log('Port:', mongoose.connection.port);
     })
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Route imports
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const storeRoutes = require('./routes/stores');
-const userRoutes = require('./routes/user');
-
-// Route handlers
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/deals', dealsRoutes);
 
+// Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

@@ -24,24 +24,64 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.get('/', async (req, res) => {
-    const { category, minPrice, maxPrice, sortBy, page = 1, limit = 70 } = req.query;
-    const filter = {};
-    // Apply filters based on query params
-    if (category) filter.category = category;
-    if (minPrice || maxPrice) filter.price = { $gte: minPrice || 0, $lte: maxPrice || Infinity };
+router.get('/store/:storeId/aisles', async (req, res) => {
+    try {
+        const aisles = await Product.distinct('aisle', {
+            store: req.params.storeId
+        });
+        res.json(aisles);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch aisles' });
+    }
+});
+
+router.get('/store/:storeId', async (req, res) => {
+    try {
+        const products = await Product.find({
+            store: req.params.storeId
+        });
+        res.json(products);
+    } catch (err) {
+        console.error('Error fetching store products:', err);
+        res.status(500).json({ error: 'Failed to fetch store products' });
+    }
+});
+
+router.get('/search', async (req, res) => {
+    const query = req.query.q; // ?q=apple
 
     try {
-        const products = await Product.find(filter)
-            .sort(sortBy ? { [sortBy]: 1 } : {}) // Example sort (1 for ascending)
-            .skip((page - 1) * limit)            // Pagination
-            .limit(Number(limit));// Retrieves all documents in the 'products' collection
+        const products = await Product.find({
+            name: { $regex: query, $options: 'i' } // case-insensitive search
+        });
+        res.json(products);
+    } catch (err) {
+        console.error('Search error:', err);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
 
-        console.log('Products retrieved from MongoDB:', products); // Log products to console
+router.get('/', async (req, res) => {
+    try {
+        const products = await Product.find();
         res.json(products);
     } catch (error) {
-        console.error('Error retrieving products:', error);
-        res.status(500).json({ error: 'Failed to retrieve products' });
+        console.error('Error fetching products:', error);
+        res.status(500).json({ error: 'Failed to fetch products' });
+    }
+});
+
+router.get('/:id([0-9a-fA-F]{24})', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json(product);
+
+    } catch (error) {
+        console.error('Error fetching product by id:', error);
+        res.status(500).json({ error: 'Failed to fetch product' });
     }
 });
 
@@ -65,5 +105,6 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete product' });
     }
 });
+
 
 module.exports = router;

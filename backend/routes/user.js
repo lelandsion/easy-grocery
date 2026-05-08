@@ -4,6 +4,17 @@ const router = express.Router();
 const auth = require('../middleware/auth'); // Authentication middleware
 const User = require('../models/User');
 const Store = require("../models/Store");
+const Product = require('../models/Product');
+
+const normalize = (s) =>
+
+    s.toLowerCase()
+
+        .replace(/$begin:math:text$\.\*\?$end:math:text$/g, '')   // remove (12 pack)
+
+        .replace(/[^a-z0-9 ]/g, '') // remove symbols
+
+        .trim();
 
 // Get user profile with populated favorites and shoppingLists
 router.get('/profile', auth, async (req, res) => {
@@ -21,14 +32,229 @@ router.get('/profile', auth, async (req, res) => {
     }
 });
 
+router.get('/lists/:id/split', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId)
+            .populate('shoppingLists.items');
+
+        const list = user.shoppingLists.id(req.params.id);
+
+        if (!list) {
+            return res.status(404).json({ message: "List not found" });
+        }
+
+        let total = 0;
+        const breakdown = [];
+        const products = [];
+
+        for (const item of list.items) {
+            if (!item?.name) continue;
+
+            const matches = await Product.find({
+                name: { $regex: item.name, $options: 'i' }
+            }).lean();
+
+            if (!matches.length) continue;
+
+            const cheapest = matches.sort((a, b) => a.price - b.price)[0];
+
+            total += Number(cheapest.price || 0);
+
+            breakdown.push({
+                item: item.name,
+                store: cheapest.store,
+                price: cheapest.price
+            });
+
+            products.push({
+
+                ...cheapest,
+
+                listItemId: item._id
+
+            });
+        }
+
+        res.json({
+            total: Number(total),
+            breakdown,
+            products
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error calculating split cart" });
+    }
+});
+
+router.get('/lists/:id/best-store', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId)
+            .populate('shoppingLists.items');
+
+        const list = user.shoppingLists.id(req.params.id);
+
+        if (!list) {
+            return res.status(404).json({ message: "List not found" });
+        }
+
+        const stores = await Store.find();
+        const results = [];
+
+        // normalize helper (important for matching)
+        const normalize = (s) =>
+            (s || '')
+                .toLowerCase()
+                .replace(/\(.*?\)/g, '')   // remove (12 pack)
+                .replace(/[^a-z0-9 ]/g, '') // remove symbols
+                .replace(/\s+/g, ' ')
+                .trim();
+
+        for (const store of stores) {
+
+            let total = 0;
+            let matchedCount = 0;
+            let missing = 0;
+
+            const matchedProducts = [];
+
+            // 🔥 pull store inventory ONCE (critical optimization)
+            const storeProducts = await Product.find({
+                store: store._id
+            }).lean();
+
+            for (const item of list.items) {
+
+                if (!item?.name) continue;
+
+                const itemName = normalize(item.name);
+
+                let bestMatch = null;
+                let bestScore = 0;
+
+                // 🔍 find best match inside store inventory
+                for (const product of storeProducts) {
+
+                    const productName = normalize(product.name);
+
+                    let score = 0;
+
+                    if (productName === itemName) score = 100;
+                    else if (productName.includes(itemName) || itemName.includes(productName)) score = 70;
+                    else {
+                        // word overlap scoring
+                        const itemWords = itemName.split(' ');
+                        const productWords = productName.split(' ');
+
+                        const overlap = itemWords.filter(w =>
+                            productWords.includes(w)
+                        ).length;
+
+                        score = overlap;
+                    }
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = product;
+                    }
+                }
+
+                // accept match only if it's good enough
+                if (bestMatch && bestScore > 0) {
+                    total += Number(bestMatch.price || 0);
+                    matchedCount++;
+                    matchedProducts.push({
+
+                        ...bestMatch,
+
+                        listItemId: item._id
+
+                    });
+                } else {
+                    missing++;
+                }
+            }
+
+            results.push({
+                store: store.name,
+                storeId: store._id,
+                total,
+                matchedCount,
+                missing,
+                coverage: list.items.length
+                    ? matchedCount / list.items.length
+                    : 0,
+                products: matchedProducts
+            });
+        }
+
+        // 🏆 sort by best value: mostly coverage first, then price
+        results.sort((a, b) => {
+            if (b.coverage !== a.coverage) return b.coverage - a.coverage;
+            return a.total - b.total;
+        });
+
+        res.json(results);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error calculating best store" });
+    }
+});
+
 router.get('/lists', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).populate('shoppingLists.items');
+        const user = await User.findById(req.user.userId);
+
         if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user.shoppingLists);
+
+        const listsWithProducts = await Promise.all(
+            user.shoppingLists.map(async (list) => {
+
+                const products = await Product.find({
+                    _id: { $in: list.items }
+                });
+
+                return {
+                    _id: list._id,
+                    name: list.name,
+                    items: products
+                };
+            })
+        );
+
+        res.json(listsWithProducts);
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Failed to fetch shopping lists' });
     }
+});
+
+router.post('/lists/:listId/items', auth, async (req, res) => {
+    const { productId } = req.body;
+    console.log("listId:", req.params.listId);
+
+    console.log("productId:", productId);
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        const list = user.shoppingLists.id(req.params.listId);
+        if (!list) return res.status(404).json({ message: 'List not found' });
+        // 🔥 FIX: proper ObjectId comparison
+        const alreadyExists = list.items.some(item =>
+            (item._id ? item._id.toString() : item.toString()) === productId
+        );
+        if (!alreadyExists) {
+            list.items.push(productId);
+        }
+        await user.save();
+        res.json({ message: "Added to list", list });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to add item to list' });
+    }
+
 });
 
 // Create a new shopping list
@@ -47,7 +273,7 @@ router.post('/lists', auth, async (req, res) => {
 });
 
 // Update an existing shopping list
-router.put('/lists/:listId', auth, async (req, res) => {
+/*router.put('/lists/:listId', auth, async (req, res) => {
     const { listId } = req.params;
     const { name, items } = req.body;
     try {
@@ -63,6 +289,30 @@ router.put('/lists/:listId', auth, async (req, res) => {
         res.json({ message: 'Shopping list updated', list });
     } catch (error) {
         res.status(500).json({ message: 'Failed to update shopping list' });
+    }
+});*/
+
+router.delete('/lists/:listId/items/:productId', auth, async (req, res) => {
+    console.log("The remove route is being called.");
+    console.log("params:", req.params);
+    try {
+        const user = await User.findById(req.user.userId);
+        const list = user.shoppingLists.id(req.params.listId);
+
+        if (!list) return res.status(404).json({ message: 'List not found' });
+
+        // SAME STYLE AS FRONTEND LOGIC: filter array
+        list.items = list.items.filter(
+            id => id.toString() !== req.params.productId
+        );
+
+        await user.save();
+
+        res.json({ message: 'Item removed', list });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to remove item' });
     }
 });
 

@@ -34,7 +34,8 @@ const ListPreview = ({ list }) => {
         <ListContainer>
             <ListTitle>{list.name}</ListTitle>
             <ListItems>
-                {list.items.map(item => (
+                {list.items?.map(item => (
+
                     <ListItem key={item._id}>{item.name}</ListItem>
                 ))}
             </ListItems>

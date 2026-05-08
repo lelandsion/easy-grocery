@@ -1,6 +1,89 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+
+const Page = styled.div`
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f7fb;
+`;
+
+const Card = styled.div`
+    width: 380px;
+    background: white;
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+`;
+
+const Logo = styled.h1`
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 20px;
+
+    span {
+        color: #22c55e;
+    }
+`;
+
+const Title = styled.h2`
+    font-size: 18px;
+    margin-bottom: 18px;
+    font-weight: 600;
+`;
+
+const Input = styled.input`
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    outline: none;
+
+    &:focus {
+        border-color: #22c55e;
+    }
+`;
+
+const Button = styled.button`
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #22c55e;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+        background: #16a34a;
+    }
+`;
+
+const LinkButton = styled.button`
+    margin-top: 12px;
+    background: none;
+    border: none;
+    color: #22c55e;
+    cursor: pointer;
+`;
+
+const Message = styled.p`
+    font-size: 13px;
+    margin-bottom: 10px;
+
+    color: #991b1b;
+    background: #fee2e2;
+
+    padding: 10px 12px;
+
+    border-radius: 10px;
+
+    border: 1px solid #fecaca;
+`;
 
 const LoginPage = ({ onLoginSuccess }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
@@ -17,85 +100,93 @@ const LoginPage = ({ onLoginSuccess }) => {
         try {
             const response = await axios.post('/api/auth/login', formData);
             const token = response.data.token;
-            localStorage.setItem('token', token); // Save JWT token
 
-            // Fetch user profile after login
+            localStorage.setItem('token', token);
+
             const profileResponse = await axios.get('/api/user/profile', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            onLoginSuccess(profileResponse.data); // Pass profile data up to parent component
+
+            onLoginSuccess(profileResponse.data);
             setMessage("Login successful!");
+            navigate('/');
         } catch (error) {
             setMessage('Invalid email or password.');
         }
     };
 
-    const handleToggleSignUp = () => {
-        setShowSignUp(!showSignUp);
+    const SignUpForm = () => {
+        const [signUpData, setSignUpData] = useState({
+            username: '',
+            email: '',
+            password: ''
+        });
+        const [signUpMessage, setSignUpMessage] = useState(null);
+
+        const handleChange = (e) => {
+            setSignUpData({ ...signUpData, [e.target.name]: e.target.value });
+        };
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            try {
+                const res = await axios.post('/api/auth/register', signUpData);
+                localStorage.setItem('token', res.data.token);
+                setSignUpMessage("Account created!");
+                setShowSignUp(false);
+            } catch {
+                setSignUpMessage("Error creating account.");
+            }
+        };
+
+        return (
+            <>
+                <Title>Create account</Title>
+
+                {signUpMessage && <Message>{signUpMessage}</Message>}
+
+                <form onSubmit={handleSubmit}>
+                    <Input name="username" placeholder="Username" onChange={handleChange} required />
+                    <Input type="email" name="email" placeholder="Email" onChange={handleChange} required />
+                    <Input type="password" name="password" placeholder="Password" onChange={handleChange} required />
+
+                    <Button type="submit">Sign Up</Button>
+                </form>
+
+                <LinkButton onClick={() => setShowSignUp(false)}>
+                    Already have an account? Login
+                </LinkButton>
+            </>
+        );
     };
 
     return (
-        <div>
-            {showSignUp ? (
-                <SignUpForm onSignUpSuccess={() => setShowSignUp(false)} />
-            ) : (
-                <>
-                    <h2>Login</h2>
-                    {message && <p>{message}</p>}
-                    <form onSubmit={handleSubmit}>
-                        <input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-                        <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-                        <button type="submit">Login</button>
-                    </form>
-                    <p>
-                        Don't have an account?{' '}
-                        <button onClick={handleToggleSignUp} style={{ color: 'blue', background: 'none', border: 'none', cursor: 'pointer' }}>
-                            Sign Up
-                        </button>
-                    </p>
-                </>
-            )}
-        </div>
-    );
-};
+        <Page>
+            <Card>
+                <Logo>Grocer<span>AI</span></Logo>
 
-const SignUpForm = ({ onSignUpSuccess }) => {
-    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
-    const [message, setMessage] = useState(null);
+                {showSignUp ? (
+                    <SignUpForm />
+                ) : (
+                    <>
+                        <Title>Welcome back</Title>
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+                        {message && <Message>{message}</Message>}
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await axios.post('/api/auth/register', formData);
-            localStorage.setItem('token', response.data.token); // Save JWT token
-            setMessage("Sign-up successful! You're now logged in.");
-            onSignUpSuccess();
-        } catch (error) {
-            setMessage('Error during registration.');
-        }
-    };
+                        <form onSubmit={handleSubmit}>
+                            <Input type="email" name="email" placeholder="Email" onChange={handleChange} required />
+                            <Input type="password" name="password" placeholder="Password" onChange={handleChange} required />
 
-    return (
-        <div>
-            <h2>Sign Up</h2>
-            {message && <p>{message}</p>}
-            <form onSubmit={handleSubmit}>
-                <input name="username" placeholder="Username" onChange={handleChange} required />
-                <input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-                <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-                <button type="submit">Sign Up</button>
-            </form>
-            <p>
-                Already have an account?{' '}
-                <button onClick={onSignUpSuccess} style={{ color: 'blue', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    Login
-                </button>
-            </p>
-        </div>
+                            <Button type="submit">Login</Button>
+                        </form>
+
+                        <LinkButton onClick={() => setShowSignUp(true)}>
+                            Don't have an account? Sign up
+                        </LinkButton>
+                    </>
+                )}
+            </Card>
+        </Page>
     );
 };
 

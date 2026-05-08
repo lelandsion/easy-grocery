@@ -11,13 +11,20 @@ const StoreListContainer = styled.div`
 `;
 
 const StoreCard = styled(Link)`
-    text-decoration: none;
-    color: inherit;
-    background: #f9f9f9;
-    padding: 1em;
-    border-radius: 8px;
-    width: 150px;
+    min-width: 160px;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
     text-align: center;
+    text-decoration: none;
+    color: #111;
+    border: 1px solid #eee;
+    transition: all 0.2s ease;
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
 `;
 
 const StoreList = () => {

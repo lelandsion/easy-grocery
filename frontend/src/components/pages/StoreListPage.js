@@ -48,8 +48,8 @@ const StoreDescription = styled.p`
 `;
 
 const LoadingMessage = styled.p`
-    font-size: 1.2em;
-    color: #555;
+    text-align: center;
+    color: #666;
 `;
 
 const ErrorMessage = styled.p`
