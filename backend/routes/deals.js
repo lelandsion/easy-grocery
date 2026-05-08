@@ -81,7 +81,7 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // ✅ rank + limit
+        // rank + limit
         deals.sort((a, b) => b.score - a.score);
         const topDeals = deals.slice(0, 30);
 
