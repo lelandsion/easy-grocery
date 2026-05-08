@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="%PUBLIC_URL%/grocerai-logo.png" />
+
+  <!-- Mobile scaling -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Theme color (mobile browser UI) -->
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- SEO -->
+  <meta
+          name="description"
+          content="Smart grocery shopping — compare prices, find deals, and shop faster."
+  />
+
+  <!-- Apple -->
+  <link rel="apple-touch-icon" href="%PUBLIC_URL%/grocerai-logo.png" />
+
+  <!-- Manifest -->
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+  <!-- 🔥 Google Font (clean startup feel) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <title>GrocerAI</title>
+
+  <style>
+    /* Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f7f7f7;
+      color: #111;
+      overflow-y: auto;
+
+    }
+
+    /* Root container */
+    #root {
+      min-height: 100vh;
+      display: block;
+    }
+
+    /* Loading screen */
+    .app-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span {
+      color: #22c55e;
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top: 3px solid #22c55e;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .tagline {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+
+<!-- 🔥 Pre-React Loading UI -->
+<div id="root">
+  <div class="app-loading">
+    <div class="logo">Grocer<span>AI</span></div>
+    <div class="spinner"></div>
+    <div class="tagline">Finding the best prices near you...</div>
+  </div>
+</div>
+</body>
+</html>
