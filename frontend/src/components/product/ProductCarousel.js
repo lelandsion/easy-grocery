@@ -1,7 +1,7 @@
 // src/components/product/ProductCarousel.js
 import { useNavigate } from 'react-router-dom';
 import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
+import axios from "../../api";
 import styled from 'styled-components';
 
 /* ================= STYLES ================= */

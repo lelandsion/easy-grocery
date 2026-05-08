@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from "../../api";
 /* ================= LAYOUT ================= */
 
 const Container = styled.div`

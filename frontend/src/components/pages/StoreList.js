@@ -1,7 +1,7 @@
 // src/components/store/StoreList.js
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import axios from "../../api";
 import styled from 'styled-components';
 
 const StoreListContainer = styled.div`

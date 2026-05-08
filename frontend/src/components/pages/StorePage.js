@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import axios from "../../api";
 import styled from 'styled-components';
 import ProductCard from '../product/ProductCard';
 
