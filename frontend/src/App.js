@@ -14,7 +14,7 @@ import AccountPage from './components/user/AccountPage';
 import LoginPage from './components/user/LoginPage';
 import SearchResultsPage from './components/pages/SearchResultsPage';
 import StorePage from './components/pages/StorePage';
-import axios from "api";
+import axios from "./api";
 import {useEffect} from "react";
 import { Toaster } from 'react-hot-toast';
 
