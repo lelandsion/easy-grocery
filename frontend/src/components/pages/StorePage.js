@@ -103,40 +103,85 @@ const StorePage = () => {
 
     const [selectedAisle, setSelectedAisle] = useState('All');
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
 
-    /* ---------------- LOAD DATA ---------------- */
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const limit = 40;
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+
     useEffect(() => {
-        setLoading(true);
-
         axios.get(`/api/stores/${storeId}`)
             .then(res => setStore(res.data))
             .catch(console.error);
 
-        axios.get(`/api/products/store/${storeId}`)
-            .then(res => setProducts(res.data))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-
-        axios.get(`/api/products/store/${storeId}/aisles`)
-            .then(res => setAisles(res.data))
+        axios.get(`/api/products/store/${storeId}/categories`)
+            .then(res => setCategories(res.data))
             .catch(console.error);
-
     }, [storeId]);
 
-    /* ---------------- FILTER ---------------- */
-    const filteredProducts =
-        selectedAisle === 'All'
-            ? products
-            : products.filter(p => p.aisle === selectedAisle);
+    useEffect(() => {
+        setProducts([]);
+        setPage(1);
+        setHasMore(true);
+        fetchProducts(1, true);
+    }, [storeId, selectedAisle]);
 
-    /* ---------------- UI STATES ---------------- */
+    const fetchProducts = async (pageToLoad, reset = false) => {
+        try {
+            if (reset) setLoading(true);
+            else setLoadingMore(true);
+
+            const params = {
+                page: pageToLoad,
+                limit: 40
+            };
+
+            if (selectedCategory !== 'All') {
+                params.category = selectedCategory;
+            }
+
+            const res = await axios.get(`/api/products/store/${storeId}`, { params });
+
+            const newProducts = res.data.products || [];
+
+            setProducts(prev =>
+                reset ? newProducts : [...prev, ...newProducts]
+            );
+
+            setHasMore(res.data.hasMore);
+            setPage(pageToLoad);
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (loadingMore || !hasMore) return;
+
+            const nearBottom =
+                window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
+
+            if (nearBottom) {
+                fetchProducts(page + 1);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [page, hasMore, loadingMore, selectedAisle]);
+
     if (loading) return <Loading>Loading store...</Loading>;
     if (!store) return <Center>Store not found</Center>;
 
     return (
         <Container>
-
-            {/* STORE HEADER */}
             <Header>
                 <StoreInfo>
                     <Logo src={store.logo} alt={store.name} />
@@ -147,7 +192,6 @@ const StorePage = () => {
                 </StoreInfo>
             </Header>
 
-            {/* AISLES */}
             <AisleBar>
                 <AisleTab
                     active={selectedAisle === 'All'}
@@ -156,28 +200,27 @@ const StorePage = () => {
                     All
                 </AisleTab>
 
-                {aisles.map(aisle => (
+                {categories.map(category => (
                     <AisleTab
-                        key={aisle}
-                        active={selectedAisle === aisle}
-                        onClick={() => setSelectedAisle(aisle)}
+                        key={category}
+                        active={selectedCategory === category}
+                        onClick={() => setSelectedCategory(category)}
                     >
-                        {aisle}
+                        {category}
                     </AisleTab>
                 ))}
             </AisleBar>
 
-            {/* PRODUCTS */}
             <SectionHeader>
                 <h2>{selectedAisle}</h2>
-                <span>{filteredProducts.length} items</span>
+                <span>{products.length} loaded</span>
             </SectionHeader>
 
-            {filteredProducts.length === 0 ? (
+            {products.length === 0 ? (
                 <Center>No products in this aisle</Center>
             ) : (
                 <Grid>
-                    {filteredProducts.map(product => (
+                    {products.map(product => (
                         <ProductCard
                             key={product._id}
                             product={product}
@@ -187,6 +230,8 @@ const StorePage = () => {
                 </Grid>
             )}
 
+            {loadingMore && <Loading>Loading more products...</Loading>}
+            {!hasMore && products.length > 0 && <Center>End of results</Center>}
         </Container>
     );
 };

@@ -24,23 +24,49 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.get('/store/:storeId/aisles', async (req, res) => {
+router.get('/store/:storeId/categories', async (req, res) => {
     try {
-        const aisles = await Product.distinct('aisle', {
+        const categories = await Product.distinct('category', {
             store: req.params.storeId
         });
-        res.json(aisles);
+
+        res.json(categories.filter(Boolean).sort());
     } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch aisles' });
+        res.status(500).json({ error: 'Failed to fetch categories' });
     }
 });
 
 router.get('/store/:storeId', async (req, res) => {
     try {
-        const products = await Product.find({
-            store: req.params.storeId
+        const { storeId } = req.params;
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 40;
+        const category = req.query.category;
+
+        const query = { store: storeId };
+
+        if (category && category !== 'All') {
+            query.category = category;
+        }
+
+        const skip = (page - 1) * limit;
+
+        const products = await Product.find(query)
+            .sort({ name: 1 })
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Product.countDocuments(query);
+
+        res.json({
+            products,
+            page,
+            limit,
+            total,
+            hasMore: skip + products.length < total
         });
-        res.json(products);
+
     } catch (err) {
         console.error('Error fetching store products:', err);
         res.status(500).json({ error: 'Failed to fetch store products' });
