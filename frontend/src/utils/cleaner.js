@@ -1,27 +1,25 @@
 require('dotenv').config({
-
     path: require('path').resolve(__dirname, '../../../.env')
-
 });
 
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 
-const MONGO_URI = process.env.MONGODB_URI; // consistent naming
+const MONGO_URI = process.env.MONGODB_URI;
 const DB_NAME = "grocery_data";
 const COLLECTION = "products";
 
-// Guard (prevents your earlier crash)
 if (!MONGO_URI) {
-    throw new Error(" MONGODB_URI is not defined in .env");
+    throw new Error("MONGODB_URI is not defined in .env");
 }
 
-// ---------------- CORE ----------------
+/* ================= CORE ================= */
 
 async function withClient(fn) {
     const client = new MongoClient(MONGO_URI);
 
     try {
         await client.connect();
+
         const db = client.db(DB_NAME);
         const collection = db.collection(COLLECTION);
 
@@ -29,48 +27,116 @@ async function withClient(fn) {
 
     } catch (err) {
         console.error("❌ Mongo error:", err);
+
     } finally {
         await client.close();
     }
 }
 
-// ---------------- CLEANERS ----------------
+/* ================= CLEANERS ================= */
 
-async function cleanStore(storeId) {
+// remove products with missing/0 price
+async function removeZeroPriceProducts() {
+
     return withClient(async (collection) => {
-        const result = await collection.deleteMany({ store: storeId });
 
-        console.log(`🧹 Deleted ${result.deletedCount} items for store: ${storeId}`);
+        const result = await collection.deleteMany({
+            $or: [
+                { price: 0 },
+                { price: "0" },
+                { price: null },
+                { price: { $exists: false } }
+            ]
+        });
+
+        console.log(`🧹 Removed ${result.deletedCount} zero-price products`);
     });
 }
 
-async function wipeAll() {
-    return withClient(async (collection) => {
-        const result = await collection.deleteMany({});
+// remove duplicates
+async function removeDuplicates() {
 
-        console.log(`Wiped ${result.deletedCount} total products`);
+    return withClient(async (collection) => {
+
+        const duplicates = await collection.aggregate([
+            {
+                $group: {
+                    _id: {
+                        name: "$name",
+                        store: "$store",
+                        quantity: "$quantity"
+                    },
+
+                    ids: { $push: "$_id" },
+
+                    count: { $sum: 1 }
+                }
+            },
+
+            {
+                $match: {
+                    count: { $gt: 1 }
+                }
+            }
+
+        ]).toArray();
+
+        let totalDeleted = 0;
+
+        for (const dup of duplicates) {
+
+            // keep first document
+            const idsToDelete = dup.ids.slice(1);
+
+            if (idsToDelete.length > 0) {
+
+                const result = await collection.deleteMany({
+                    _id: { $in: idsToDelete }
+                });
+
+                totalDeleted += result.deletedCount;
+            }
+        }
+
+        console.log(`🧹 Removed ${totalDeleted} duplicate products`);
     });
 }
 
-// ---------------- RUNNER ----------------
+/* ================= RUNNER ================= */
 
 async function main() {
+
     const arg = process.argv[2];
 
     if (!arg) {
+
         console.log("Usage:");
-        console.log("  node cleaner.js <store-id>");
-        console.log("  node cleaner.js --all");
+        console.log("  node cleaner.js --duplicates");
+        console.log("  node cleaner.js --zero");
+        console.log("  node cleaner.js --all-clean");
+
         process.exit(1);
     }
 
-    if (arg === "--all") {
-        await wipeAll();
+    if (arg === "--duplicates") {
+
+        await removeDuplicates();
+
+    } else if (arg === "--zero") {
+
+        await removeZeroPriceProducts();
+
+    } else if (arg === "--all-clean") {
+
+        await removeZeroPriceProducts();
+        await removeDuplicates();
+
     } else {
-        await cleanStore(arg);
+
+        console.log("Unknown command");
     }
 
-    process.exit(0); // clean exit
+    process.exit(0);
 }
 
 main();

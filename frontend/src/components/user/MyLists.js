@@ -259,8 +259,7 @@ const ListPage = () => {
         try {
             console.log("Attempting to remove item calling delete route");
             await axios.delete(
-
-                `http://localhost:5001/api/user/lists/${listId}/items/${productId}`,
+                `/api/user/lists/${listId}/items/${productId}`,
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -347,16 +346,22 @@ const ListPage = () => {
     /* ================= FETCH LISTS ================= */
 
     useEffect(() => {
+        setBestStoresMap({});
+        setSplitMap({});
+        setSelectedStoreMap({});
+    }, [lists]);
 
+    useEffect(() => {
         const token = localStorage.getItem('token');
 
         if (!token) {
             setIsAuthenticated(false);
+            setLoading(false);
+            setError(null);
             return;
         }
 
         setIsAuthenticated(true);
-
         setLoading(true);
 
         axios.get('/api/user/lists', {
@@ -365,7 +370,14 @@ const ListPage = () => {
             .then(res => setLists(res.data))
             .catch(err => {
                 console.error(err);
-                setError('Failed to load shopping lists.');
+
+                if (err.response?.status === 401) {
+                    localStorage.removeItem('token');
+                    setIsAuthenticated(false);
+                    setError(null);
+                } else {
+                    setError('Failed to load shopping lists.');
+                }
             })
             .finally(() => setLoading(false));
     }, []);
@@ -616,7 +628,10 @@ const ListPage = () => {
                                 >
                                     −
                                 </DeleteListButton>
-                                <ListPreview list={list} />
+                                <ListPreview
+                                    list={list}
+                                    onRemoveItem={(productId) => handleRemove(list._id, productId)}
+                                />
 
                                 {/* TOGGLE */}
 

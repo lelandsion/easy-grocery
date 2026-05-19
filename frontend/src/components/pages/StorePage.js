@@ -5,11 +5,34 @@ import styled from 'styled-components';
 import ProductCard from '../product/ProductCard';
 
 /* ================= UI ================= */
-
 const Container = styled.div`
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 0 auto;
     padding: 32px 20px;
+`;
+
+const ContentLayout = styled.div`
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 28px;
+    align-items: start;
+`;
+
+const AisleBar = styled.div`
+    position: sticky;
+    top: 20px;
+    height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding-right: 14px;
+    margin-left: -8px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const ProductsArea = styled.div`
+    min-width: 0;
 `;
 
 const Header = styled.div`
@@ -45,14 +68,6 @@ const Subtitle = styled.p`
     font-size: 14px;
 `;
 
-/* 🔥 AISLES */
-const AisleBar = styled.div`
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 12px 0;
-    margin-bottom: 20px;
-`;
 
 const AisleTab = styled.button`
     padding: 8px 14px;
@@ -99,9 +114,7 @@ const StorePage = () => {
 
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
-    const [aisles, setAisles] = useState([]);
 
-    const [selectedAisle, setSelectedAisle] = useState('All');
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
 
@@ -112,6 +125,37 @@ const StorePage = () => {
     const [selectedCategory, setSelectedCategory] = useState('All');
 
     useEffect(() => {
+
+        setSelectedCategory('All');
+
+        setProducts([]);
+
+        setPage(1);
+
+        setHasMore(true);
+
+        axios.get(`/api/stores/${storeId}`)
+
+            .then(res => setStore(res.data))
+
+            .catch(console.error);
+
+        axios.get(`/api/products/store/${storeId}/categories`)
+
+            .then(res => setCategories(res.data))
+
+            .catch(console.error);
+
+    }, [storeId]);
+
+    useEffect(() => {
+        setProducts([]);
+        setPage(1);
+        setHasMore(true);
+        fetchProducts(1, true);
+    }, [storeId, selectedCategory]);
+
+    useEffect(() => {
         axios.get(`/api/stores/${storeId}`)
             .then(res => setStore(res.data))
             .catch(console.error);
@@ -120,13 +164,6 @@ const StorePage = () => {
             .then(res => setCategories(res.data))
             .catch(console.error);
     }, [storeId]);
-
-    useEffect(() => {
-        setProducts([]);
-        setPage(1);
-        setHasMore(true);
-        fetchProducts(1, true);
-    }, [storeId, selectedAisle]);
 
     const fetchProducts = async (pageToLoad, reset = false) => {
         try {
@@ -175,63 +212,112 @@ const StorePage = () => {
 
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [page, hasMore, loadingMore, selectedAisle]);
+    }, [page, hasMore, loadingMore, selectedCategory, storeId]);
 
     if (loading) return <Loading>Loading store...</Loading>;
     if (!store) return <Center>Store not found</Center>;
 
     return (
         <Container>
-            <Header>
-                <StoreInfo>
-                    <Logo src={store.logo} alt={store.name} />
-                    <StoreText>
-                        <StoreTitle>{store.name}</StoreTitle>
-                        <Subtitle>{store.description}</Subtitle>
-                    </StoreText>
-                </StoreInfo>
-            </Header>
 
-            <AisleBar>
-                <AisleTab
-                    active={selectedAisle === 'All'}
-                    onClick={() => setSelectedAisle('All')}
-                >
-                    All
-                </AisleTab>
+            <ContentLayout>
 
-                {categories.map(category => (
+                <AisleBar>
+
                     <AisleTab
-                        key={category}
-                        active={selectedCategory === category}
-                        onClick={() => setSelectedCategory(category)}
+
+                        active={selectedCategory === 'All'}
+
+                        onClick={() => setSelectedCategory('All')}
+
                     >
-                        {category}
+
+                        All
+
                     </AisleTab>
-                ))}
-            </AisleBar>
 
-            <SectionHeader>
-                <h2>{selectedAisle}</h2>
-                <span>{products.length} loaded</span>
-            </SectionHeader>
+                    {categories.map(category => (
 
-            {products.length === 0 ? (
-                <Center>No products in this aisle</Center>
-            ) : (
-                <Grid>
-                    {products.map(product => (
-                        <ProductCard
-                            key={product._id}
-                            product={product}
-                            onAddToCart={() => console.log('Add:', product)}
-                        />
+                        <AisleTab
+
+                            key={category}
+
+                            active={selectedCategory === category}
+
+                            onClick={() => setSelectedCategory(category)}
+
+                        >
+
+                            {category}
+
+                        </AisleTab>
+
                     ))}
-                </Grid>
-            )}
 
-            {loadingMore && <Loading>Loading more products...</Loading>}
-            {!hasMore && products.length > 0 && <Center>End of results</Center>}
+                </AisleBar>
+
+                <ProductsArea>
+
+                    <Header>
+
+                        <StoreInfo>
+
+                            <Logo src={store.logo} alt={store.name} />
+
+                            <StoreText>
+
+                                <StoreTitle>{store.name}</StoreTitle>
+
+                                <Subtitle>{store.description}</Subtitle>
+
+                            </StoreText>
+
+                        </StoreInfo>
+
+                    </Header>
+
+                    <SectionHeader>
+
+                        <h2>{selectedCategory}</h2>
+
+                        <span>{products.length} loaded</span>
+
+                    </SectionHeader>
+
+                    {products.length === 0 ? (
+
+                        <Center>No products in this aisle</Center>
+
+                    ) : (
+
+                        <Grid>
+
+                            {products.map(product => (
+
+                                <ProductCard
+
+                                    key={product._id}
+
+                                    product={product}
+
+                                    onAddToCart={() => console.log('Add:', product)}
+
+                                />
+
+                            ))}
+
+                        </Grid>
+
+                    )}
+
+                    {loadingMore && <Loading>Loading more products...</Loading>}
+
+                    {!hasMore && products.length > 0 && <Center>End of results</Center>}
+
+                </ProductsArea>
+
+            </ContentLayout>
+
         </Container>
     );
 };

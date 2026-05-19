@@ -29,14 +29,38 @@ const ListItem = styled.li`
     }
 `;
 
-const ListPreview = ({ list }) => {
+const ListPreview = ({ list, onRemoveItem }) => {
     return (
         <ListContainer>
             <ListTitle>{list.name}</ListTitle>
             <ListItems>
-                {list.items?.map(item => (
+                {list.items.map(item => (
+                    <div
+                        key={item._id}
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "6px 0"
+                        }}
+                    >
+                        <span>{item.name}</span>
 
-                    <ListItem key={item._id}>{item.name}</ListItem>
+                        <button
+                            onClick={() => onRemoveItem(item._id)}
+                            style={{
+                                border: "none",
+                                background: "#f3f4f6",
+                                borderRadius: "999px",
+                                width: "24px",
+                                height: "24px",
+                                cursor: "pointer"
+                            }}
+                        >
+                            -
+                        </button>
+                    </div>
                 ))}
             </ListItems>
         </ListContainer>

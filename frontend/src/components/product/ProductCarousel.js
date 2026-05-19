@@ -61,6 +61,7 @@ const ProductCarousel = () => {
             .catch(err => {
                 console.error('Error fetching deals:', err);
                 setError('Failed to load deals');
+                setError(`Failed to load deals: ${err.response?.status || err.message}`);
                 setLoading(false);
             });
     }, []);
