@@ -250,6 +250,8 @@ const ListPage = () => {
     const [listToDelete, setListToDelete] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newListName, setNewListName] = useState('');
+    const [loadingBestMap, setLoadingBestMap] = useState({});
+    const [loadingSplitMap, setLoadingSplitMap] = useState({});
 
     const handleRemove = async (listId, productId) => {
         const token = localStorage.getItem('token');
@@ -367,7 +369,27 @@ const ListPage = () => {
         axios.get('/api/user/lists', {
             headers: { Authorization: `Bearer ${token}` },
         })
-            .then(res => setLists(res.data))
+            .then(async (res) => {
+                if (res.data.length === 0) {
+                    const createRes = await axios.post(
+                        '/api/user/lists',
+                        {
+                            name: 'My Grocery List',
+                            items: []
+                        },
+                        {
+                            headers: { Authorization: `Bearer ${token}` }
+                        }
+                    );
+
+                    const newList = createRes.data.lists[createRes.data.lists.length - 1];
+
+                    setLists([newList]);
+                    return;
+                }
+
+                setLists(res.data);
+            })
             .catch(err => {
                 console.error(err);
 
@@ -390,6 +412,10 @@ const ListPage = () => {
         const fetchBestStores = async () => {
             const results = {};
             for (const list of lists) {
+                setLoadingBestMap(prev => ({
+                    ...prev,
+                    [list._id]: true
+                }));
                 try {
                     const res = await axios.get(
                         `/api/user/lists/${list._id}/best-store`,
@@ -398,13 +424,16 @@ const ListPage = () => {
                     results[list._id] = res.data;
                 } catch (err) {
                     console.error(err);
+                } finally {
+                    setLoadingBestMap(prev => ({
+                        ...prev,
+                        [list._id]: false
+                    }));
                 }
             }
             setBestStoresMap(results);
         };
-
         fetchBestStores();
-
     }, [lists]);
 
 
@@ -419,9 +448,14 @@ const ListPage = () => {
         const fetchSplits = async () => {
 
             const results = {};
-
             for (const list of lists) {
+                setLoadingSplitMap(prev => ({
 
+                    ...prev,
+
+                    [list._id]: true
+
+                }));
                 try {
 
                     const res = await axios.get(
@@ -438,6 +472,11 @@ const ListPage = () => {
 
                     console.error(err);
 
+                } finally {
+                    setLoadingSplitMap(prev => ({
+                        ...prev,
+                        [list._id]: false
+                    }));
                 }
 
             }
@@ -599,6 +638,10 @@ const ListPage = () => {
 
                         const split = splitMap[list._id];
 
+                        const loadingBest = loadingBestMap[list._id];
+
+                        const loadingSplit = loadingSplitMap[list._id];
+
                         const activeView =
 
                             activeViewMap[list._id] ?? "best";
@@ -628,6 +671,16 @@ const ListPage = () => {
                                 >
                                     −
                                 </DeleteListButton>
+
+                                {list.items.length === 0 && (
+                                    <Center style={{ padding: '24px 12px' }}>
+                                        <p>Add items to this list to compare prices across stores.</p>
+
+                                        <Button onClick={() => navigate('/search')}>
+                                            Add items to compare prices
+                                        </Button>
+                                    </Center>
+                                )}
                                 <ListPreview
                                     list={list}
                                     onRemoveItem={(productId) => handleRemove(list._id, productId)}
@@ -660,6 +713,7 @@ const ListPage = () => {
                                             border: activeView === "best" ? '2px solid #22c55e' : '1px solid #ddd'
 
                                         }}
+
 
                                     >
 
@@ -698,6 +752,12 @@ const ListPage = () => {
                                     </button>
 
                                 </div>
+
+                                {activeView === "best" && loadingBest && (
+                                    <LoadingBox>
+                                        Finding best store...
+                                    </LoadingBox>
+                                )}
 
                                 {/* BEST STORE */}
 
@@ -782,6 +842,12 @@ const ListPage = () => {
 
                                     </BestStoreBox>
 
+                                )}
+
+                                {activeView === "split" && loadingSplit && (
+                                    <LoadingBox>
+                                        Calculating cheapest split...
+                                    </LoadingBox>
                                 )}
 
                                 {/* SPLIT */}

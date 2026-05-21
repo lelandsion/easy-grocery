@@ -7,6 +7,7 @@ import StoreList from '../pages/StoreListPage'; // For available stores
 import FavoritePage from '../user/Favorites'; // User favorites
 import ListPage from '../user/MyLists'; // User shopping lists
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 
 const Container = styled.div`
 
@@ -86,8 +87,63 @@ const CardSection = styled.div`
   border: 1px solid #eee;
 
 `;
-const HomePage = () => {
 
+const HeroContent = styled.div`
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 24px;
+
+    @media (max-width: 768px) {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+    }
+
+`;
+
+const HeroText = styled.div`
+
+    flex: 1;
+
+`;
+
+const HeroButton = styled.button`
+
+    padding: 14px 20px;
+
+    border-radius: 999px;
+
+    border: none;
+
+    background: white;
+
+    color: #16a34a;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    white-space: nowrap;
+
+    &:hover {
+
+        opacity: 0.92;
+
+    }
+
+`;
+
+const HomePage = () => {
+    const navigate = useNavigate();
+
+    const token = localStorage.getItem('token');
     return (
 
         <Container>
@@ -96,13 +152,39 @@ const HomePage = () => {
 
             <Hero>
 
-                <HeroTitle>Find the Best Grocery Deals</HeroTitle>
+                <HeroContent>
 
-                <HeroSubtitle>
+                    <HeroText>
 
-                    Compare prices across stores and save money instantly
+                        <HeroTitle>
 
-                </HeroSubtitle>
+                            Find the Best Grocery Deals
+
+                        </HeroTitle>
+
+                        <HeroSubtitle>
+
+                            Compare prices across stores and save money instantly
+
+                        </HeroSubtitle>
+
+                    </HeroText>
+
+                    <HeroButton
+
+                        onClick={() => navigate(token ? '/my-lists' : '/account')}
+
+                    >
+
+                        {token
+
+                            ? 'View Your Lists'
+
+                            : 'Sign In & Create Your First List'}
+
+                    </HeroButton>
+
+                </HeroContent>
 
             </Hero>
 

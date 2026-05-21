@@ -385,10 +385,20 @@ const ProductCard = ({ product, onRemove }) => {
             <AddButton
                 onClick={(e) => {
                     e.stopPropagation();
+                    if (!token) {
+
+                        toast.error("Sign in to create and save grocery lists");
+
+                        navigate("/account");
+
+                        return;
+
+                    }
+
                     setOpen(true);
                 }}
             >
-                Add to List
+                {token ? "Add to List" : "Sign in to Save"}
             </AddButton>
 
             {open && (
@@ -448,8 +458,28 @@ const ProductCard = ({ product, onRemove }) => {
                             </SmallButton>
                         </>
                     ) : (
-                        <SmallButton onClick={() => setCreating(true)}>
+                        <SmallButton
+
+                            onClick={() => {
+
+                                if (!token) {
+
+                                    toast.error("Sign in to create lists");
+
+                                    navigate("/account");
+
+                                    return;
+
+                                }
+
+                                setCreating(true);
+
+                            }}
+
+                        >
+
                             + New List
+
                         </SmallButton>
                     )}
 
