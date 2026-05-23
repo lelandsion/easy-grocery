@@ -3,8 +3,57 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const { OAuth2Client } = require('google-auth-library');
 
 require('dotenv').config();
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// GOOGLE LOGIN
+router.post('/google', async (req, res) => {
+    try {
+        const { credential } = req.body;
+
+        if (!credential) {
+            return res.status(400).json({ message: "Missing Google credential" });
+        }
+
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            return res.status(500).json({ message: "GOOGLE_CLIENT_ID missing" });
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+
+        let user = await User.findOne({ email: payload.email });
+
+        if (!user) {
+            user = new User({
+                username: payload.name || payload.email.split('@')[0],
+                email: payload.email,
+                password: `google-${payload.sub}-${process.env.JWT_SECRET}`
+            });
+
+            await user.save();
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.json({ token, user });
+
+    } catch (err) {
+        console.error("Google login error:", err);
+        res.status(401).json({ message: "Google sign-in failed" });
+    }
+});
 
 const loginLimiter = rateLimit({
 
@@ -35,7 +84,10 @@ router.post('/register', async (req, res) => {
             { expiresIn: '1h' }
         );
 
-        res.status(201).json({ token });
+        res.status(201).json({
+            token,
+            user: newUser
+        });
 
     } catch (err) {
         console.error(err);
@@ -60,7 +112,10 @@ router.post('/login', loginLimiter, async (req, res) => {
             { expiresIn: '1h' }
         );
 
-        res.json({ token });
+        res.json({
+            token,
+            user
+        });
 
     } catch (err) {
         console.error(err);

@@ -12,12 +12,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "bcrypt": "^6.0.0",
-    "jsonwebtoken": "^9.0.3",
-    "express-rate-limit": "^8.5.1",
     "express": "^4.21.1",
+    "express-rate-limit": "^8.5.1",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.8.1"
   },
   "devDependencies": {

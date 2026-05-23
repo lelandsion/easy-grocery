@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from "../../api";
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Page = styled.div`
     height: 100vh;
@@ -83,6 +84,46 @@ const Message = styled.p`
     border-radius: 10px;
 
     border: 1px solid #fecaca;
+`;
+
+const GoogleBox = styled.div`
+
+    margin-top: 16px;
+
+    display: flex;
+
+    justify-content: center;
+
+`;
+
+const Divider = styled.div`
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    margin: 18px 0;
+
+    color: #999;
+
+    font-size: 13px;
+
+    &::before,
+
+    &::after {
+
+        content: "";
+
+        flex: 1;
+
+        height: 1px;
+
+        background: #e5e7eb;
+
+    }
+
 `;
 
 const LoginPage = ({ onLoginSuccess }) => {
@@ -174,15 +215,70 @@ const LoginPage = ({ onLoginSuccess }) => {
                         {message && <Message>{message}</Message>}
 
                         <form onSubmit={handleSubmit}>
-                            <Input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-                            <Input type="password" name="password" placeholder="Password" onChange={handleChange} required />
+
+                            <Input type="email" name="email" placeholder="Email" onChange={handleChange} required/>
+
+                            <Input type="password" name="password" placeholder="Password" onChange={handleChange}
+                                   required/>
 
                             <Button type="submit">Login</Button>
+
                         </form>
 
+                        <Divider>or</Divider>
+
+                        <GoogleBox>
+
+                            <GoogleLogin
+
+                                width="316"
+
+                                text="continue_with"
+
+                                shape="pill"
+
+                                onSuccess={async (credentialResponse) => {
+
+                                    try {
+
+                                        const res = await axios.post('/api/auth/google', {
+
+                                            credential: credentialResponse.credential
+
+                                        });
+
+                                        localStorage.setItem('token', res.data.token);
+
+                                        onLoginSuccess?.(res.data.user);
+
+                                        navigate('/my-lists');
+
+                                    } catch (err) {
+
+                                        console.error(err);
+
+                                        setMessage('Google sign-in failed.');
+
+                                    }
+
+                                }}
+
+                                onError={() => {
+
+                                    setMessage('Google sign-in failed.');
+
+                                }}
+
+                            />
+
+                        </GoogleBox>
+
                         <LinkButton onClick={() => setShowSignUp(true)}>
+
                             Don't have an account? Sign up
+
                         </LinkButton>
+
                     </>
                 )}
             </Card>
