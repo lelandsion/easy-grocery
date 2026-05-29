@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema({
     shoppingLists: [
         {
             name: String,
+
+            estimatedSavings: {
+                type: Number,
+                default: 0
+            },
+
             items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]
         }
     ],

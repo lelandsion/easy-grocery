@@ -57,10 +57,12 @@ const Message = styled.p`
 `;
 
 const SignUpPage = () => {
-    const [formData, setFormData] = useState({
+
+    const [signUpData, setSignUpData] = useState({
         username: '',
         email: '',
-        password: ''
+        password: '',
+        confirmPassword: ''
     });
 
     const [message, setMessage] = useState(null);
@@ -71,12 +73,27 @@ const SignUpPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (signUpData.password !== signUpData.confirmPassword) {
+            setSignUpMessage("Passwords do not match.");
+            return;
+        }
+
         try {
-            const res = await axios.post('/api/auth/register', formData);
+            const { confirmPassword, ...payload } = signUpData;
+
+            const res = await axios.post('/api/auth/register', payload);
             localStorage.setItem('token', res.data.token);
-            setMessage("Account created successfully!");
+
+            const profileResponse = await axios.get('/api/user/profile', {
+                headers: { Authorization: `Bearer ${res.data.token}` }
+            });
+
+            onLoginSuccess?.(profileResponse.data);
+            navigate('/my-lists');
+
         } catch {
-            setMessage("Error during registration.");
+            setSignUpMessage("Error creating account.");
         }
     };
 
@@ -91,6 +108,13 @@ const SignUpPage = () => {
                     <Input name="username" placeholder="Username" onChange={handleChange} required />
                     <Input type="email" name="email" placeholder="Email" onChange={handleChange} required />
                     <Input type="password" name="password" placeholder="Password" onChange={handleChange} required />
+                    <Input
+                        type="password"
+                        name="confirmPassword"
+                        placeholder="Confirm password"
+                        onChange={handleChange}
+                        required
+                    />
 
                     <Button type="submit">Sign Up</Button>
                 </form>

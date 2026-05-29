@@ -127,6 +127,12 @@ const Divider = styled.div`
 `;
 
 const LoginPage = ({ onLoginSuccess }) => {
+    const [signUpData, setSignUpData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [message, setMessage] = useState(null);
     const [showSignUp, setShowSignUp] = useState(false);
@@ -136,8 +142,9 @@ const LoginPage = ({ onLoginSuccess }) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
+    const handleLoginSubmit = async (e) => {
         e.preventDefault();
+
         try {
             const response = await axios.post('/api/auth/login', formData);
             const token = response.data.token;
@@ -149,7 +156,7 @@ const LoginPage = ({ onLoginSuccess }) => {
             });
 
             onLoginSuccess(profileResponse.data);
-            setMessage("Login successful!");
+            setMessage(null);
             navigate('/');
         } catch (error) {
             setMessage('Invalid email or password.');
@@ -190,6 +197,13 @@ const LoginPage = ({ onLoginSuccess }) => {
                     <Input name="username" placeholder="Username" onChange={handleChange} required />
                     <Input type="email" name="email" placeholder="Email" onChange={handleChange} required />
                     <Input type="password" name="password" placeholder="Password" onChange={handleChange} required />
+                    <Input
+                        type="password"
+                        name="confirmPassword"
+                        placeholder="Confirm password"
+                        onChange={handleChange}
+                        required
+                    />
 
                     <Button type="submit">Sign Up</Button>
                 </form>
@@ -214,7 +228,7 @@ const LoginPage = ({ onLoginSuccess }) => {
 
                         {message && <Message>{message}</Message>}
 
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleLoginSubmit}>
 
                             <Input type="email" name="email" placeholder="Email" onChange={handleChange} required/>
 

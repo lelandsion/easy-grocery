@@ -13,22 +13,83 @@ const Container = styled.div`
 
 const ContentLayout = styled.div`
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 240px 1fr;
     gap: 28px;
     align-items: start;
+
+    @media (max-width: 800px) {
+        grid-template-columns: 1fr;
+    }
 `;
 
 const AisleBar = styled.div`
     position: sticky;
-    top: 20px;
-    height: calc(100vh - 40px);
+    top: 24px;
+    height: calc(100vh - 48px);
     overflow-y: auto;
-    padding-right: 14px;
-    margin-left: -8px;
+
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 18px;
+    padding: 14px;
 
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    box-shadow: 0 10px 28px rgba(0,0,0,0.04);
+
+    overscroll-behavior: contain;
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 999px;
+    }
+
+    @media (max-width: 800px) {
+        position: static;
+        height: auto;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex-direction: row;
+    }
+`;
+
+const AisleTitle = styled.div`
+    font-size: 13px;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 6px;
+
+    @media (max-width: 800px) {
+        display: none;
+    }
+`;
+
+const AisleTab = styled.button`
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid ${props => (props.$active ? '#22c55e' : '#e5e7eb')};
+    background: ${props => (props.$active ? '#ecfdf5' : 'white')};
+    color: ${props => (props.$active ? '#15803d' : '#333')};
+    font-weight: ${props => (props.$active ? 700 : 500)};
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+
+    &:hover {
+        border-color: #22c55e;
+        background: #f0fdf4;
+    }
+
+    @media (max-width: 800px) {
+        white-space: nowrap;
+    }
 `;
 
 const ProductsArea = styled.div`
@@ -66,21 +127,6 @@ const Subtitle = styled.p`
     color: #666;
     margin-top: 4px;
     font-size: 14px;
-`;
-
-
-const AisleTab = styled.button`
-    padding: 8px 14px;
-    border-radius: 999px;
-    border: 1px solid #ddd;
-    background: ${props => (props.active ? '#22c55e' : 'white')};
-    color: ${props => (props.active ? 'white' : '#333')};
-    cursor: pointer;
-    white-space: nowrap;
-
-    &:hover {
-        border-color: #22c55e;
-    }
 `;
 
 const SectionHeader = styled.div`
@@ -155,15 +201,7 @@ const StorePage = () => {
         fetchProducts(1, true);
     }, [storeId, selectedCategory]);
 
-    useEffect(() => {
-        axios.get(`/api/stores/${storeId}`)
-            .then(res => setStore(res.data))
-            .catch(console.error);
 
-        axios.get(`/api/products/store/${storeId}/categories`)
-            .then(res => setCategories(res.data))
-            .catch(console.error);
-    }, [storeId]);
 
     const fetchProducts = async (pageToLoad, reset = false) => {
         try {
@@ -223,37 +261,24 @@ const StorePage = () => {
             <ContentLayout>
 
                 <AisleBar>
+                    <AisleTitle>Aisles</AisleTitle>
 
                     <AisleTab
-
-                        active={selectedCategory === 'All'}
-
+                        $active={selectedCategory === 'All'}
                         onClick={() => setSelectedCategory('All')}
-
                     >
-
                         All
-
                     </AisleTab>
 
                     {categories.map(category => (
-
                         <AisleTab
-
                             key={category}
-
-                            active={selectedCategory === category}
-
+                            $active={selectedCategory === category}
                             onClick={() => setSelectedCategory(category)}
-
                         >
-
                             {category}
-
                         </AisleTab>
-
                     ))}
-
                 </AisleBar>
 
                 <ProductsArea>

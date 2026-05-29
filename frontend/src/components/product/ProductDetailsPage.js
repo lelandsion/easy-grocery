@@ -9,8 +9,10 @@ const Page = styled.div`
     display: flex;
     justify-content: center;
     padding: 40px 20px;
-    background: #f9fafb;
     min-height: 100vh;
+    background:
+            radial-gradient(circle at top left, rgba(34,197,94,0.16), transparent 32%),
+            linear-gradient(135deg, #f9fafb, #eefdf3);
 `;
 
 const Container = styled.div`
@@ -19,13 +21,37 @@ const Container = styled.div`
     gap: 40px;
     max-width: 1000px;
     width: 100%;
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid #eee;
+
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid rgba(255,255,255,0.8);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.08);
 
     @media (max-width: 768px) {
         grid-template-columns: 1fr;
+    }
+`;
+
+const ShopLink = styled.a`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-top: 12px;
+    padding: 10px 14px;
+
+    border-radius: 10px;
+    background: #111827;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+
+    &:hover {
+        background: #030712;
     }
 `;
 
@@ -279,7 +305,22 @@ const ProductDetailsPage = () => {
                     </Store>
 
                     <Section>
-                        <p>{product.description || "No description available."}</p>
+                        <Section>
+                            <p>
+                                {product.description ||
+                                    "Product details may vary. Please refer to the physical product or retailer listing for the most current information."}
+                            </p>
+
+                            {product.product_url && (
+                                <ShopLink
+                                    href={product.product_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    View on {store?.name || "retailer"} →
+                                </ShopLink>
+                            )}
+                        </Section>
                     </Section>
 
                     {/* ADD TO LIST BUTTON */}

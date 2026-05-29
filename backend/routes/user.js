@@ -32,6 +32,87 @@ router.get('/profile', auth, async (req, res) => {
     }
 });
 
+router.get('/stats', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId)
+            .populate('shoppingLists.items');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const stores = await Store.find();
+
+
+
+        let listsCreated = user.shoppingLists.length;
+        let itemsCompared = 0;
+        let estimatedSavings = 0;
+
+        for (const list of user.shoppingLists) {
+            itemsCompared += list.items.length;
+            estimatedSavings += Number(list.estimatedSavings || 0);
+        }
+
+
+        const normalize = (s) =>
+            (s || '')
+                .toLowerCase()
+                .replace(/\(.*?\)/g, '')
+                .replace(/[^a-z0-9 ]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+
+
+        res.json({
+            estimatedSavings,
+            listsCreated,
+            itemsCompared
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to calculate stats' });
+    }
+});
+
+router.post('/stats/savings', auth, async (req, res) => {
+    try {
+        const { listId, savings } = req.body;
+
+        if (!listId || savings == null) {
+            return res.status(400).json({ message: 'Missing listId or savings' });
+        }
+
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const list = user.shoppingLists.id(listId);
+
+        if (!list) {
+            return res.status(404).json({ message: 'List not found' });
+        }
+
+        list.estimatedSavings = Math.max(0, Number(savings));
+
+        await user.save();
+
+        res.json({
+            message: 'Savings updated',
+            estimatedSavings: list.estimatedSavings
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to save savings' });
+    }
+});
+
+
 router.get('/lists/:id/split', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.userId)
@@ -231,6 +312,95 @@ router.get('/lists', auth, async (req, res) => {
     }
 });
 
+router.get('/lists/recommend/preview', auth, async (req, res) => {
+    try {
+        const stapleTerms = [
+            'milk',
+            'eggs',
+            'bread',
+            'banana',
+            'chicken',
+            'rice',
+            'pasta',
+            'apple',
+            'cheese',
+            'yogurt'
+        ];
+
+        const products = [];
+
+        for (const term of stapleTerms) {
+            const product = await Product.findOne({
+                name: { $regex: term, $options: 'i' },
+                price: { $gt: 0, $lt: 100 }
+            }).sort({ price: 1 }).lean();
+
+            if (product) products.push(product);
+        }
+
+        res.json({
+            name: 'Recommended Weekly Groceries',
+            items: products
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to preview recommended list' });
+    }
+});
+
+router.post('/lists/recommend', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const stapleTerms = [
+            'milk',
+            'eggs',
+            'bread',
+            'banana',
+            'chicken',
+            'rice',
+            'pasta',
+            'apple',
+            'cheese',
+            'yogurt'
+        ];
+
+        const products = [];
+
+        for (const term of stapleTerms) {
+            const product = await Product.findOne({
+                name: { $regex: term, $options: 'i' },
+                price: { $gt: 0, $lt: 100 }
+            }).sort({ price: 1 });
+
+            if (product) products.push(product._id);
+        }
+
+        const uniqueProducts = [...new Set(products.map(id => id.toString()))];
+
+        user.shoppingLists.push({
+            name: 'Recommended Weekly Staples',
+            items: uniqueProducts
+        });
+
+        await user.save();
+
+        res.status(201).json({
+            message: 'Recommended list created',
+            lists: user.shoppingLists
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to create recommended list' });
+    }
+});
+
 router.post('/lists/:listId/items', auth, async (req, res) => {
     const { productId } = req.body;
     console.log("listId:", req.params.listId);
@@ -271,6 +441,8 @@ router.post('/lists', auth, async (req, res) => {
         res.status(500).json({ message: 'Failed to create shopping list' });
     }
 });
+
+
 
 // Update an existing shopping list
 /*router.put('/lists/:listId', auth, async (req, res) => {

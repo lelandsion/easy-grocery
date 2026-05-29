@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from "../../api";
+import toast from 'react-hot-toast';
 /* ================= LAYOUT ================= */
 
 const Container = styled.div`
@@ -36,7 +37,7 @@ const LogoutButton = styled.button`
     &:hover {
         background: #f3f4f6;
     }
-
+    
 `;
 /* ================= CARD ================= */
 
@@ -47,6 +48,32 @@ const Card = styled.div`
     border: 1px solid #eee;
     margin-bottom: 20px;
 `;
+
+const StatsGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+`;
+
+const StatCard = styled.div`
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 14px;
+    padding: 16px;
+`;
+
+const StatValue = styled.div`
+    font-size: 24px;
+    font-weight: 700;
+    color: #15803d;
+`;
+
+const StatLabel = styled.div`
+    font-size: 13px;
+    color: #555;
+    margin-top: 4px;
+`;
+
 
 /* ================= USER INFO ================= */
 
@@ -130,6 +157,7 @@ const Center = styled.div`
 const AccountPage = ({ user, setUser }) => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate(); // ✅ move up
+    const [stats, setStats] = useState(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -152,6 +180,19 @@ const AccountPage = ({ user, setUser }) => {
             })
             .finally(() => setLoading(false));
 
+    }, []);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        axios.get('/api/user/stats', {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => {
+                setStats(res.data);
+
+            })
+            .catch(console.error);
     }, []);
 
     const handleLogout = () => {
@@ -199,6 +240,27 @@ const AccountPage = ({ user, setUser }) => {
 
                 </UserInfo>
 
+            </Card>
+
+            <Card>
+                <SectionTitle>Savings Stats</SectionTitle>
+
+                <StatsGrid>
+                    <StatCard>
+                        <StatValue>${Number(stats?.estimatedSavings || 0).toFixed(2)}</StatValue>
+                        <StatLabel>Estimated total saved</StatLabel>
+                    </StatCard>
+
+                    <StatCard>
+                        <StatValue>{stats?.listsCreated || 0}</StatValue>
+                        <StatLabel>Lists created</StatLabel>
+                    </StatCard>
+
+                    <StatCard>
+                        <StatValue>{stats?.itemsCompared || 0}</StatValue>
+                        <StatLabel>Items compared</StatLabel>
+                    </StatCard>
+                </StatsGrid>
             </Card>
 
             <Card>

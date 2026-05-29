@@ -4,6 +4,7 @@ import ListPreview from '../user/ListPreview';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import ProductCard from '../product/ProductCard';
+import toast from 'react-hot-toast';
 /* ================= STYLES ================= */
 
 const Page = styled.div`
@@ -53,21 +54,21 @@ const Button = styled.button`
 
 const DeleteListButton = styled.button`
     position: absolute;
-    top: 40px;
-    right: 20px;
+    top: 18px;
+    right: 18px;
 
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    border: none;
+    border: 1px solid #eee;
     border-radius: 999px;
 
-    background: #f5f5f5;
-    color: #777;
+    background: white;
+    color: #999;
 
     font-size: 16px;
     cursor: pointer;
@@ -75,8 +76,9 @@ const DeleteListButton = styled.button`
     transition: all 0.15s ease;
 
     &:hover {
-        background: #ebebeb;
-        color: #333;
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fecaca;
     }
 `;
 
@@ -101,10 +103,17 @@ const ErrorBox = styled.div`
 
 const Card = styled.div`
     background: white;
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid #eee;
-    position: relative
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    position: relative;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 36px rgba(0,0,0,0.07);
+    }
 `;
 
 const BestStoreBox = styled.div`
@@ -234,6 +243,67 @@ const Input = styled.input`
 
 `;
 
+const RecommendedCard = styled.div`
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 18px;
+`;
+
+const RecommendedTitle = styled.h3`
+    margin: 0 0 6px 0;
+`;
+
+const RecommendedText = styled.p`
+    color: #555;
+    font-size: 14px;
+    margin-bottom: 12px;
+`;
+
+const ToggleRow = styled.div`
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+`;
+
+const ToggleButton = styled.button`
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: ${props => props.$active ? '1px solid #22c55e' : '1px solid #e5e7eb'};
+    background: ${props => props.$active ? '#ecfdf5' : 'white'};
+    color: ${props => props.$active ? '#15803d' : '#374151'};
+    font-weight: 600;
+    cursor: pointer;
+`;
+
+const StoreOptionButton = styled.button`
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: ${props => props.$active ? '1px solid #22c55e' : '1px solid #e5e7eb'};
+    background: ${props => props.$active ? '#ecfdf5' : '#f9fafb'};
+    color: ${props => props.$active ? '#15803d' : '#374151'};
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+`;
+
+const SavingsBox = styled.div`
+    background: #f9fafb;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 12px;
+`;
+
+const ProductGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+`;
+
 /* ================= COMPONENT ================= */
 
 const ListPage = () => {
@@ -252,6 +322,34 @@ const ListPage = () => {
     const [newListName, setNewListName] = useState('');
     const [loadingBestMap, setLoadingBestMap] = useState({});
     const [loadingSplitMap, setLoadingSplitMap] = useState({});
+    const [recommendedList, setRecommendedList] = useState(null);
+    const [addingRecommended, setAddingRecommended] = useState(false);
+    const [addedRecommendations, setAddedRecommendations] = useState({});
+
+    const showClickableToast = (message, route = '/account') => {
+        toast((t) => (
+            <div
+                onClick={() => {
+                    toast.dismiss(t.id);
+                    navigate(route);
+                }}
+                style={{
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4
+                }}
+            >
+                <strong>{message}</strong>
+                <span style={{ fontSize: 13, color: '#16a34a' }}>
+                Click to view your stats →
+            </span>
+            </div>
+        ), {
+            duration: 5000
+        });
+    };
+
 
     const handleRemove = async (listId, productId) => {
         const token = localStorage.getItem('token');
@@ -303,6 +401,7 @@ const ListPage = () => {
 
             setNewListName('');
             setShowCreateModal(false);
+            showClickableToast('List created! Click to view your stats.', '/account');
 
         } catch (err) {
 
@@ -343,6 +442,41 @@ const ListPage = () => {
 
     };
 
+    const addRecommendedList = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            setAddingRecommended(true);
+
+            await axios.post(
+                '/api/user/lists/recommend',
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            const refreshed = await axios.get('/api/user/lists', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setLists(refreshed.data);
+
+            // Hide recommendation after adding
+            setAddedRecommendations(prev => ({
+                ...prev,
+                [recommendedList?.name || 'recommended']: true
+            }));
+
+            setRecommendedList(null);
+            showClickableToast('Recommended list added! Click to view your stats.', '/account');
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAddingRecommended(false);
+        }
+    };
+
 
 
     /* ================= FETCH LISTS ================= */
@@ -352,6 +486,18 @@ const ListPage = () => {
         setSplitMap({});
         setSelectedStoreMap({});
     }, [lists]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token || !isAuthenticated) return;
+
+        axios.get('/api/user/lists/recommend/preview', {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => setRecommendedList(res.data))
+            .catch(console.error);
+
+    }, [isAuthenticated]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -404,24 +550,69 @@ const ListPage = () => {
             .finally(() => setLoading(false));
     }, []);
 
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        Object.keys(bestStoresMap).forEach(async (listId) => {
+            const bestStores = bestStoresMap[listId];
+            const split = splitMap[listId];
+
+            if (!bestStores?.length) return;
+
+            const storeTotals = bestStores
+                .map(s => s.total)
+                .filter(total => total > 0 && total < 500);
+
+            if (!storeTotals.length) return;
+
+            const averageTotal =
+                storeTotals.reduce((a, b) => a + b, 0) / storeTotals.length;
+
+            const selectedStore = bestStores[0];
+            const optimizedTotal = split?.total || selectedStore?.total;
+
+            if (!optimizedTotal) return;
+
+            const savings = averageTotal - optimizedTotal;
+
+            if (savings > 0) {
+                await axios.post(
+                    '/api/user/stats/savings',
+                    { listId, savings },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
+        });
+    }, [bestStoresMap, splitMap]);
+
     /* ================= FETCH BEST STORE ================= */
+
 
     useEffect(() => {
         const token = localStorage.getItem('token');
+
         if (!token || lists.length === 0) return;
+
         const fetchBestStores = async () => {
             const results = {};
+
             for (const list of lists) {
+                if (!list.items || list.items.length === 0) continue;
+
                 setLoadingBestMap(prev => ({
                     ...prev,
                     [list._id]: true
                 }));
+
                 try {
                     const res = await axios.get(
                         `/api/user/lists/${list._id}/best-store`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
+
                     results[list._id] = res.data;
+
                 } catch (err) {
                     console.error(err);
                 } finally {
@@ -431,8 +622,10 @@ const ListPage = () => {
                     }));
                 }
             }
+
             setBestStoresMap(results);
         };
+
         fetchBestStores();
     }, [lists]);
 
@@ -440,53 +633,43 @@ const ListPage = () => {
     /* ================= FETCH SPLIT ================= */
 
     useEffect(() => {
-
         const token = localStorage.getItem('token');
 
         if (!token || lists.length === 0) return;
 
         const fetchSplits = async () => {
-
             const results = {};
+
             for (const list of lists) {
+                if (!list.items || list.items.length === 0) continue;
+
                 setLoadingSplitMap(prev => ({
-
                     ...prev,
-
                     [list._id]: true
-
                 }));
+
                 try {
-
                     const res = await axios.get(
-
                         `/api/user/lists/${list._id}/split`,
-
                         { headers: { Authorization: `Bearer ${token}` } }
-
                     );
 
                     results[list._id] = res.data;
 
                 } catch (err) {
-
                     console.error(err);
-
                 } finally {
                     setLoadingSplitMap(prev => ({
                         ...prev,
                         [list._id]: false
                     }));
                 }
-
             }
 
             setSplitMap(results);
-
         };
 
         fetchSplits();
-
     }, [lists]);
 
     /* ================= AUTH ================= */
@@ -620,6 +803,46 @@ const ListPage = () => {
 
             </Header>
 
+            {recommendedList?.items?.length > 0 &&
+                !addedRecommendations[recommendedList.name || 'recommended'] && (
+                <RecommendedCard>
+                    <RecommendedTitle>{recommendedList.name}</RecommendedTitle>
+
+                    <RecommendedText>
+                        Auto-generated starter list based on common weekly grocery staples.
+                        Add it to compare prices across stores instantly.
+                    </RecommendedText>
+
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                            gap: 10,
+                            marginTop: 14,
+                            marginBottom: 14
+                        }}
+                    >
+                        {recommendedList.items.slice(0, 6).map(product => (
+                            <ProductCard
+                                key={product._id}
+                                product={product}
+                            />
+                        ))}
+                    </div>
+
+
+                    {recommendedList.items.length > 6 && (
+                        <p style={{fontSize: 13, color: '#666'}}>
+                            + {recommendedList.items.length - 6} more items
+                        </p>
+                    )}
+
+                    <Button onClick={addRecommendedList} disabled={addingRecommended}>
+                    {addingRecommended ? 'Adding...' : 'Add this list'}
+                    </Button>
+                </RecommendedCard>
+            )}
+
             {lists.length === 0 ? (
 
                 <Center>
@@ -661,6 +884,35 @@ const ListPage = () => {
                         const selectedIndex =
 
                             bestStores?.findIndex(s => s.store === selectedStoreName);
+
+                        const storeTotals = bestStores?.map(s => s.total).filter(Boolean) || [];
+
+                        const averageTotal =
+                            storeTotals.length > 0
+                                ? storeTotals.reduce((a, b) => a + b, 0) / storeTotals.length
+                                : null;
+
+                        const bestSingleStore =
+                            bestStores?.length > 0
+                                ? bestStores.reduce((best, store) =>
+                                    store.total < best.total ? store : best
+                                )
+                                : null;
+
+                        const optimizedTotal =
+                            activeView === "split"
+                                ? split?.total
+                                : selectedStore?.total;
+
+                        const savingsVsAverage =
+                            averageTotal != null && optimizedTotal != null
+                                ? averageTotal - optimizedTotal
+                                : null;
+
+                        const savingsVsBestSingle =
+                            bestSingleStore && split?.total
+                                ? bestSingleStore.total - split.total
+                                : null;
 
                         return (
 
@@ -761,7 +1013,34 @@ const ListPage = () => {
 
                                 {/* BEST STORE */}
 
+                                {optimizedTotal != null && averageTotal != null && (
+                                    <BestStoreBox>
+                                        <SectionTitle>Savings Summary</SectionTitle>
+
+                                        <div>
+                                            Current total: ${optimizedTotal.toFixed(2)}
+                                        </div>
+
+                                        <div>
+                                            Average store total: ${averageTotal.toFixed(2)}
+                                        </div>
+
+                                        {savingsVsAverage > 0 && (
+                                            <div style={{ color: '#16a34a', fontWeight: 600 }}>
+                                                Saves ${savingsVsAverage.toFixed(2)} vs average store pricing
+                                            </div>
+                                        )}
+
+                                        {activeView === "split" && savingsVsBestSingle > 0 && (
+                                            <div style={{ color: '#16a34a', fontWeight: 600 }}>
+                                                Saves ${savingsVsBestSingle.toFixed(2)} vs best single store
+                                            </div>
+                                        )}
+                                    </BestStoreBox>
+                                )}
+
                                 {activeView === "best" && bestStores?.length > 0 && (
+
                                     <BestStoreBox>
                                         <SectionTitle>Store Options</SectionTitle>
                                         <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
@@ -844,6 +1123,7 @@ const ListPage = () => {
 
                                 )}
 
+
                                 {activeView === "split" && loadingSplit && (
                                     <LoadingBox>
                                         Calculating cheapest split...
@@ -907,6 +1187,8 @@ const ListPage = () => {
         </Page>
 
     );
+
+
 
 };
 
