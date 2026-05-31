@@ -22,7 +22,7 @@ router.get('/profile', auth, async (req, res) => {
         const user = await User.findById(req.user.userId)
             .select('-password')
             .populate('favorites') // Populate favorites with Product details
-            .populate('shoppingLists.items'); // Populate shopping list items with Product details
+            .populate('shoppingLists.items') // Populate shopping list items with Product details
 
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.json(user);
@@ -35,7 +35,7 @@ router.get('/profile', auth, async (req, res) => {
 router.get('/stats', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.userId)
-            .populate('shoppingLists.items');
+            .populate('shoppingLists.items')
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -50,7 +50,10 @@ router.get('/stats', auth, async (req, res) => {
         let estimatedSavings = 0;
 
         for (const list of user.shoppingLists) {
-            itemsCompared += list.items.length;
+            itemsCompared += list.items.reduce(
+                (sum, item) => sum + (item.quantity || 1),
+                0
+            );
             estimatedSavings += Number(list.estimatedSavings || 0);
         }
 
@@ -119,54 +122,42 @@ router.get('/lists/:id/split', auth, async (req, res) => {
             .populate('shoppingLists.items');
 
         const list = user.shoppingLists.id(req.params.id);
-
-        if (!list) {
-            return res.status(404).json({ message: "List not found" });
-        }
+        if (!list) return res.status(404).json({ message: "List not found" });
 
         let total = 0;
         const breakdown = [];
         const products = [];
 
-        for (const item of list.items) {
-            if (!item?.name) continue;
+        for (const product of list.items) {
+            if (!product?.name) continue;
+
+            const quantity = list.itemQuantities?.get(product._id.toString()) || 1;
 
             const matches = await Product.find({
-                name: { $regex: item.name, $options: 'i' }
+                name: { $regex: product.name, $options: 'i' },
+                price: { $gt: 0, $lt: 500 }
             }).lean();
 
             if (!matches.length) continue;
 
-            const cheapest = matches.sort((a, b) => a.price - b.price)[0];
+            const cheapest = matches.sort((a, b) => Number(a.price) - Number(b.price))[0];
 
-            total += Number(cheapest.price || 0);
-
-            breakdown.push({
-                item: item.name,
-                store: cheapest.store,
-                price: cheapest.price
-            });
+            total += Number(cheapest.price || 0) * quantity;
 
             products.push({
-
                 ...cheapest,
-
-                listItemId: item._id
-
+                listItemId: product._id,
+                quantity
             });
         }
 
-        res.json({
-            total: Number(total),
-            breakdown,
-            products
-        });
-
+        res.json({ total, breakdown, products });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Error calculating split cart" });
     }
 });
+
 
 router.get('/lists/:id/best-store', auth, async (req, res) => {
     try {
@@ -182,40 +173,41 @@ router.get('/lists/:id/best-store', auth, async (req, res) => {
         const stores = await Store.find();
         const results = [];
 
-        // normalize helper (important for matching)
+        const totalRequestedItems = list.items.reduce(
+            (sum, product) =>
+                sum + Number(list.itemQuantities?.get(product._id.toString()) || 1),
+            0
+        );
+
         const normalize = (s) =>
             (s || '')
                 .toLowerCase()
-                .replace(/\(.*?\)/g, '')   // remove (12 pack)
-                .replace(/[^a-z0-9 ]/g, '') // remove symbols
+                .replace(/\(.*?\)/g, '')
+                .replace(/[^a-z0-9 ]/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
 
         for (const store of stores) {
-
             let total = 0;
             let matchedCount = 0;
             let missing = 0;
-
             const matchedProducts = [];
 
-            // 🔥 pull store inventory ONCE (critical optimization)
             const storeProducts = await Product.find({
                 store: store._id
             }).lean();
 
-            for (const item of list.items) {
+            for (const listProduct of list.items) {
+                if (!listProduct?.name) continue;
 
-                if (!item?.name) continue;
-
-                const itemName = normalize(item.name);
+                const itemName = normalize(listProduct.name);
+                const quantity =
+                    list.itemQuantities?.get(listProduct._id.toString()) || 1;
 
                 let bestMatch = null;
                 let bestScore = 0;
 
-                // 🔍 find best match inside store inventory
                 for (const product of storeProducts) {
-
                     const productName = normalize(product.name);
 
                     let score = 0;
@@ -223,7 +215,6 @@ router.get('/lists/:id/best-store', auth, async (req, res) => {
                     if (productName === itemName) score = 100;
                     else if (productName.includes(itemName) || itemName.includes(productName)) score = 70;
                     else {
-                        // word overlap scoring
                         const itemWords = itemName.split(' ');
                         const productWords = productName.split(' ');
 
@@ -240,19 +231,17 @@ router.get('/lists/:id/best-store', auth, async (req, res) => {
                     }
                 }
 
-                // accept match only if it's good enough
                 if (bestMatch && bestScore > 0) {
-                    total += Number(bestMatch.price || 0);
-                    matchedCount++;
+                    total += Number(bestMatch.price || 0) * quantity;
+                    matchedCount += quantity;
+
                     matchedProducts.push({
-
                         ...bestMatch,
-
-                        listItemId: item._id
-
+                        listItemId: listProduct._id,
+                        quantity
                     });
                 } else {
-                    missing++;
+                    missing += quantity;
                 }
             }
 
@@ -262,14 +251,13 @@ router.get('/lists/:id/best-store', auth, async (req, res) => {
                 total,
                 matchedCount,
                 missing,
-                coverage: list.items.length
-                    ? matchedCount / list.items.length
+                coverage: totalRequestedItems
+                    ? matchedCount / totalRequestedItems
                     : 0,
                 products: matchedProducts
             });
         }
 
-        // 🏆 sort by best value: mostly coverage first, then price
         results.sort((a, b) => {
             if (b.coverage !== a.coverage) return b.coverage - a.coverage;
             return a.total - b.total;
@@ -282,36 +270,30 @@ router.get('/lists/:id/best-store', auth, async (req, res) => {
         res.status(500).json({ message: "Error calculating best store" });
     }
 });
-
 router.get('/lists', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId);
+        const user = await User.findById(req.user.userId)
+            .populate('shoppingLists.items');
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        const listsWithProducts = await Promise.all(
-            user.shoppingLists.map(async (list) => {
-
-                const products = await Product.find({
-                    _id: { $in: list.items }
-                });
-
-                return {
-                    _id: list._id,
-                    name: list.name,
-                    items: products
-                };
-            })
-        );
+        const listsWithProducts = user.shoppingLists.map(list => ({
+            _id: list._id,
+            name: list.name,
+            estimatedSavings: list.estimatedSavings || 0,
+            items: list.items.map(product => ({
+                ...product.toObject(),
+                listItemId: product._id,
+                quantity: list.itemQuantities?.get(product._id.toString()) || 1
+            }))
+        }));
 
         res.json(listsWithProducts);
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Failed to fetch shopping lists' });
     }
 });
-
 router.get('/lists/recommend/preview', auth, async (req, res) => {
     try {
         const stapleTerms = [
@@ -385,7 +367,10 @@ router.post('/lists/recommend', auth, async (req, res) => {
 
         user.shoppingLists.push({
             name: 'Recommended Weekly Staples',
-            items: uniqueProducts
+            items: uniqueProducts,
+            itemQuantities: Object.fromEntries(
+                uniqueProducts.map(id => [id, 1])
+            )
         });
 
         await user.save();
@@ -403,30 +388,31 @@ router.post('/lists/recommend', auth, async (req, res) => {
 
 router.post('/lists/:listId/items', auth, async (req, res) => {
     const { productId } = req.body;
-    console.log("listId:", req.params.listId);
 
-    console.log("productId:", productId);
     try {
         const user = await User.findById(req.user.userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
+
         const list = user.shoppingLists.id(req.params.listId);
         if (!list) return res.status(404).json({ message: 'List not found' });
-        // 🔥 FIX: proper ObjectId comparison
-        const alreadyExists = list.items.some(item =>
-            (item._id ? item._id.toString() : item.toString()) === productId
-        );
-        if (!alreadyExists) {
+
+        const exists = list.items.some(id => id.toString() === productId);
+
+        if (!exists) {
             list.items.push(productId);
         }
+
+        const currentQty = list.itemQuantities?.get(productId) || 0;
+        list.itemQuantities.set(productId, currentQty + 1);
+
         await user.save();
+
         res.json({ message: "Added to list", list });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Failed to add item to list' });
     }
-
 });
-
 // Create a new shopping list
 router.post('/lists', auth, async (req, res) => {
     const { name, items } = req.body; // Items should be an array of product IDs
@@ -434,7 +420,13 @@ router.post('/lists', auth, async (req, res) => {
         const user = await User.findById(req.user.userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        user.shoppingLists.push({ name, items });
+        user.shoppingLists.push({
+            name,
+            items: items || [],
+            itemQuantities: Object.fromEntries(
+                (items || []).map(id => [id, 1])
+            )
+        });
         await user.save();
         res.status(201).json({ message: 'Shopping list created', lists: user.shoppingLists });
     } catch (error) {
@@ -465,29 +457,30 @@ router.post('/lists', auth, async (req, res) => {
 });*/
 
 router.delete('/lists/:listId/items/:productId', auth, async (req, res) => {
-    console.log("The remove route is being called.");
-    console.log("params:", req.params);
     try {
         const user = await User.findById(req.user.userId);
         const list = user.shoppingLists.id(req.params.listId);
 
         if (!list) return res.status(404).json({ message: 'List not found' });
 
-        // SAME STYLE AS FRONTEND LOGIC: filter array
-        list.items = list.items.filter(
-            id => id.toString() !== req.params.productId
-        );
+        const productId = req.params.productId;
+        const currentQty = list.itemQuantities?.get(productId) || 1;
+
+        if (currentQty > 1) {
+            list.itemQuantities.set(productId, currentQty - 1);
+        } else {
+            list.items = list.items.filter(id => id.toString() !== productId);
+            list.itemQuantities.delete(productId);
+        }
 
         await user.save();
 
         res.json({ message: 'Item removed', list });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Failed to remove item' });
     }
 });
-
 // Delete a shopping list
 router.delete('/lists/:listId', auth, async (req, res) => {
     const { listId } = req.params;

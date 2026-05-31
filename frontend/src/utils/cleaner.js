@@ -53,6 +53,18 @@ async function removeZeroPriceProducts() {
     });
 }
 
+async function removeAllProducts() {
+
+    return withClient(async (collection) => {
+
+        const result = await collection.deleteMany({});
+
+        console.log(
+            `🧹 Removed ${result.deletedCount} products`
+        );
+    });
+}
+
 // remove duplicates
 async function removeDuplicates() {
 
@@ -102,6 +114,20 @@ async function removeDuplicates() {
     });
 }
 
+async function removeStoreProducts(storeId) {
+
+    return withClient(async (collection) => {
+
+        const result = await collection.deleteMany({
+            store: new ObjectId(storeId)
+        });
+
+        console.log(
+            `🧹 Removed ${result.deletedCount} products from store ${storeId}`
+        );
+    });
+}
+
 /* ================= RUNNER ================= */
 
 async function main() {
@@ -131,6 +157,22 @@ async function main() {
         await removeZeroPriceProducts();
         await removeDuplicates();
 
+    }
+    else if (arg === "--store") {
+
+        const storeId = process.argv[3];
+
+        if (!storeId) {
+            console.log("Usage:");
+            console.log("node cleaner.js --store <storeId>");
+            process.exit(1);
+        }
+
+        await removeStoreProducts(storeId);
+    }
+    else if (arg === "--all-products") {
+
+        await removeAllProducts();
     } else {
 
         console.log("Unknown command");

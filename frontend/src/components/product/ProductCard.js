@@ -211,6 +211,21 @@ const Content = styled.div`
     flex: 1;
 `;
 
+const QuantityBadge = styled.div`
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 40;
+
+    background: #111827;
+    color: white;
+    border-radius: 999px;
+    padding: 4px 8px;
+
+    font-size: 12px;
+    font-weight: 700;
+`;
+
 const Spacer = styled.div`
     flex: 1;
 `;
@@ -316,7 +331,7 @@ const ProductCard = ({ product, onRemove }) => {
                     onClick={(e) => {
                         e.stopPropagation();
                         console.log("REMOVING PRODUCT ID:", product._id);
-                        onRemove(product.listItemId);
+                        onRemove(product._id);
                     }}
                 >
                     ✕
@@ -354,8 +369,6 @@ const ProductCard = ({ product, onRemove }) => {
             )}
 
             <ImageWrapper>
-
-                {/* STORE BADGE */}
                 {store && (
                     <StoreBadge to={`/stores/${product.store}`}>
                         <StoreLogo src={store.logo} alt={store.name} />
@@ -363,16 +376,17 @@ const ProductCard = ({ product, onRemove }) => {
                     </StoreBadge>
                 )}
 
+                {product.quantity > 1 && (
+                    <QuantityBadge>
+                        × {product.quantity}
+                    </QuantityBadge>
+                )}
+
                 <Image
                     src={product.image_url}
                     alt={product.name}
                     onClick={() => navigate(`/products/${product._id}`)}
                 />
-
-                <p style={{ fontSize: '12px', color: '#777' }}>
-                    Sold by {store?.name || "Unknown Store"}
-                </p>
-
             </ImageWrapper>
             <Content>
                 <Title onClick={() => navigate(`/products/${product._id}`)}>
@@ -381,6 +395,8 @@ const ProductCard = ({ product, onRemove }) => {
                 <Spacer />
                 <Price>${Number(product.price).toFixed(2)}</Price>
             </Content>
+
+
 
             <AddButton
                 onClick={(e) => {

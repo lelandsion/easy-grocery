@@ -16,6 +16,10 @@ const productSchema = new mongoose.Schema({
     },
     description: String,
     quantity: String,
+    unitAmount: Number,      // e.g. 1000
+    unitType: String,        // "g", "ml", "ct", "each"
+    unitPrice: Number,       // price per base unit
+    unitPriceLabel: String   // "$7.99 / kg"
 
 }, { collection: 'products', timestamps: true });
 

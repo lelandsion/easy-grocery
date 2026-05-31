@@ -30,7 +30,13 @@ const userSchema = new mongoose.Schema({
                 default: 0
             },
 
-            items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]
+            items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+
+            itemQuantities: {
+                type: Map,
+                of: Number,
+                default: {}
+            }
         }
     ],
 }, { timestamps: true });

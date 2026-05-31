@@ -221,6 +221,31 @@ const NewListButton = styled.button`
 
 `;
 
+const RemoveItemButton = styled.button`
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #9ca3af;
+
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+`;
+
 const Input = styled.input`
 
     width: 100%;
@@ -304,6 +329,131 @@ const ProductGrid = styled.div`
     margin-top: 12px;
 `;
 
+
+const ListHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding-right: 38px;
+    margin-bottom: 14px;
+`;
+
+const ListTitleBlock = styled.div`
+    min-width: 0;
+`;
+
+const ListTitle = styled.h3`
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+`;
+
+const ListMeta = styled.div`
+    margin-top: 4px;
+    font-size: 13px;
+    color: #6b7280;
+`;
+
+const IconButton = styled.button`
+    position: absolute;
+    top: 18px;
+    right: 18px;
+
+    width: 32px;
+    height: 32px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+
+    background: #fff;
+    color: #9ca3af;
+
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        background: #fee2e2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+`;
+
+const ActionRow = styled.div`
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 16px 0 12px;
+`;
+
+const PillButton = styled.button`
+    padding: 8px 13px;
+    border-radius: 999px;
+    border: ${props => props.$active ? '1px solid #22c55e' : '1px solid #e5e7eb'};
+    background: ${props => props.$active ? '#ecfdf5' : '#fff'};
+    color: ${props => props.$active ? '#15803d' : '#374151'};
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+        border-color: #22c55e;
+        background: #f0fdf4;
+    }
+`;
+
+const StoreOptions = styled.div`
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+`;
+
+const SavingsSummary = styled.div`
+    background: linear-gradient(180deg, #f9fafb, #ffffff);
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 14px;
+`;
+
+const SavingsLine = styled.div`
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    margin-top: 6px;
+`;
+
+const SavingsExplanation = styled.div`
+    margin-top: 10px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+`;
+
+const SavingsHighlight = styled.div`
+    margin-top: 8px;
+    color: #15803d;
+    font-weight: 700;
+`;
+
+const EmptyListBox = styled.div`
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    border-radius: 14px;
+    padding: 24px 16px;
+    text-align: center;
+    margin: 14px 0;
+    color: #6b7280;
+`;
+
 /* ================= COMPONENT ================= */
 
 const ListPage = () => {
@@ -325,6 +475,7 @@ const ListPage = () => {
     const [recommendedList, setRecommendedList] = useState(null);
     const [addingRecommended, setAddingRecommended] = useState(false);
     const [addedRecommendations, setAddedRecommendations] = useState({});
+
 
     const showClickableToast = (message, route = '/account') => {
         toast((t) => (
@@ -480,12 +631,6 @@ const ListPage = () => {
 
 
     /* ================= FETCH LISTS ================= */
-
-    useEffect(() => {
-        setBestStoresMap({});
-        setSplitMap({});
-        setSelectedStoreMap({});
-    }, [lists]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -875,6 +1020,7 @@ const ListPage = () => {
 
                             bestStores?.[0]?.store;
 
+
                         const selectedStore =
 
                             bestStores?.find(s => s.store === selectedStoreName) ||
@@ -918,90 +1064,57 @@ const ListPage = () => {
 
                             <Card key={list._id}>
 
-                                <DeleteListButton
+                                <IconButton
+                                    aria-label={`Delete ${list.name}`}
                                     onClick={() => setListToDelete(list)}
                                 >
-                                    −
-                                </DeleteListButton>
+                                    ×
+                                </IconButton>
 
-                                {list.items.length === 0 && (
-                                    <Center style={{ padding: '24px 12px' }}>
+                                {list.items.length === 0 ? (
+                                    <EmptyListBox>
                                         <p>Add items to this list to compare prices across stores.</p>
 
                                         <Button onClick={() => navigate('/search')}>
                                             Add items to compare prices
                                         </Button>
-                                    </Center>
+                                    </EmptyListBox>
+                                ) : (
+                                    <ListPreview
+                                        list={list}
+                                        onRemoveItem={(productId) => handleRemove(list._id, productId)}
+                                    />
                                 )}
-                                <ListPreview
-                                    list={list}
-                                    onRemoveItem={(productId) => handleRemove(list._id, productId)}
-                                />
 
                                 {/* TOGGLE */}
 
                                 <div style={{display: 'flex', gap: 8, marginBottom: 10}}>
 
-                                    <button
+                                    <ActionRow>
+                                        <PillButton
+                                            $active={activeView === "best"}
+                                            onClick={() =>
+                                                setActiveViewMap(prev => ({
+                                                    ...prev,
+                                                    [list._id]: "best"
+                                                }))
+                                            }
+                                        >
+                                            🏪 Best Store
+                                        </PillButton>
 
-                                        onClick={() =>
-
-                                            setActiveViewMap(prev => ({
-
-                                                ...prev,
-
-                                                [list._id]: "best"
-
-                                            }))
-
-                                        }
-
-                                        style={{
-
-                                            padding: '6px 10px',
-
-                                            borderRadius: 8,
-
-                                            border: activeView === "best" ? '2px solid #22c55e' : '1px solid #ddd'
-
-                                        }}
-
-
-                                    >
-
-                                        🏪 Best Store
-
-                                    </button>
-
-                                    <button
-
-                                        onClick={() =>
-
-                                            setActiveViewMap(prev => ({
-
-                                                ...prev,
-
-                                                [list._id]: "split"
-
-                                            }))
-
-                                        }
-
-                                        style={{
-
-                                            padding: '6px 10px',
-
-                                            borderRadius: 8,
-
-                                            border: activeView === "split" ? '2px solid #22c55e' : '1px solid #ddd'
-
-                                        }}
-
-                                    >
-
-                                        Split
-
-                                    </button>
+                                        <PillButton
+                                            $active={activeView === "split"}
+                                            onClick={() =>
+                                                setActiveViewMap(prev => ({
+                                                    ...prev,
+                                                    [list._id]: "split"
+                                                }))
+                                            }
+                                        >
+                                            ✂️ Cheapest Split
+                                        </PillButton>
+                                    </ActionRow>
 
                                 </div>
 
@@ -1014,111 +1127,76 @@ const ListPage = () => {
                                 {/* BEST STORE */}
 
                                 {optimizedTotal != null && averageTotal != null && (
-                                    <BestStoreBox>
+                                    <SavingsSummary>
                                         <SectionTitle>Savings Summary</SectionTitle>
 
-                                        <div>
-                                            Current total: ${optimizedTotal.toFixed(2)}
-                                        </div>
+                                        <SavingsLine>
+                                            <span>Current total</span>
+                                            <strong>${optimizedTotal.toFixed(2)}</strong>
+                                        </SavingsLine>
 
-                                        <div>
-                                            Average store total: ${averageTotal.toFixed(2)}
-                                        </div>
+                                        <SavingsLine>
+                                            <span>Typical cost across all stores</span>
+                                            <strong>${averageTotal.toFixed(2)}</strong>
+                                        </SavingsLine>
 
                                         {savingsVsAverage > 0 && (
-                                            <div style={{ color: '#16a34a', fontWeight: 600 }}>
+                                            <SavingsHighlight>
                                                 Saves ${savingsVsAverage.toFixed(2)} vs average store pricing
-                                            </div>
+                                            </SavingsHighlight>
                                         )}
 
                                         {activeView === "split" && savingsVsBestSingle > 0 && (
-                                            <div style={{ color: '#16a34a', fontWeight: 600 }}>
+                                            <SavingsHighlight>
                                                 Saves ${savingsVsBestSingle.toFixed(2)} vs best single store
-                                            </div>
+                                            </SavingsHighlight>
                                         )}
-                                    </BestStoreBox>
+                                        <SavingsExplanation>
+
+                                            {activeView === "best"
+
+                                                ? "Showing the cheapest single-store option. Savings are compared against the average cost across all stores."
+
+                                                : "Showing the cheapest combination of stores. Items may be purchased from multiple stores to maximize savings."}
+
+                                        </SavingsExplanation>
+                                    </SavingsSummary>
                                 )}
 
                                 {activeView === "best" && bestStores?.length > 0 && (
 
                                     <BestStoreBox>
                                         <SectionTitle>Store Options</SectionTitle>
-                                        <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+
+                                        <StoreOptions>
                                             {bestStores.slice(0, 3).map((store, index) => (
-                                                <button
-
+                                                <PillButton
                                                     key={index}
-
+                                                    $active={index === selectedIndex}
                                                     onClick={() =>
-
                                                         setSelectedStoreMap(prev => ({
-
                                                             ...prev,
-
                                                             [list._id]: store.store
-
                                                         }))
-
                                                     }
-
-                                                    style={{
-
-                                                        padding: '6px 10px',
-
-                                                        borderRadius: 8,
-
-                                                        border: index === selectedIndex
-
-                                                            ? '2px solid #22c55e'
-
-                                                            : '1px solid #ddd'
-
-                                                    }}
-
                                                 >
-
                                                     {store.store} (${store.total.toFixed(2)})
-
-                                                </button>
-
+                                                </PillButton>
                                             ))}
-
-                                        </div>
+                                        </StoreOptions>
 
                                         {selectedStore?.products?.length > 0 && (
-
-                                            <div style={{
-
-                                                display: 'grid',
-
-                                                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-
-                                                gap: 10,
-
-                                                marginTop: 10
-
-                                            }}>
-
-                                                {selectedStore.products.map(p => (
-
+                                            <ProductGrid>
+                                                {selectedStore.products.map((p, index) => (
                                                     <ProductCard
-
-                                                        key={p._id}
-
+                                                        key={`${list._id}-best-${selectedStore.storeId || selectedStore.store}-${p._id}-${index}`}
                                                         product={p}
-
                                                         listId={list._id}
-
-                                                        onRemove={(listItemId) => handleRemove(list._id, listItemId)}
-
+                                                        onRemove={(productId) => handleRemove(list._id, productId)}
                                                     />
-
                                                 ))}
-
-                                            </div>
-
+                                            </ProductGrid>
                                         )}
-
                                     </BestStoreBox>
 
                                 )}
