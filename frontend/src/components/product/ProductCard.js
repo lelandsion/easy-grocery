@@ -312,7 +312,20 @@ const ProductCard = ({ product, onRemove }) => {
             setOpen(false);
 
             // ✅ ADD THIS
-            toast.success(`${product.name} added to ${selected.length} list${selected.length > 1 ? 's' : ''}`);
+            toast((t) => (
+                <div
+                    onClick={() => {
+                        toast.dismiss(t.id);
+                        navigate('/my-lists'); // or your MyLists route
+                    }}
+                    style={{ cursor: 'pointer' }}
+                >
+                    <strong>{product.name} added!</strong>
+                    <div style={{ fontSize: 13, color: '#16a34a' }}>
+                        Click to view your lists →
+                    </div>
+                </div>
+            ), { duration: 5000 });
 
         } catch (err) {
             console.error("ADD FAILED:", err.response?.data || err.message);

@@ -74,13 +74,50 @@ router.get('/store/:storeId', async (req, res) => {
 });
 
 router.get('/search', async (req, res) => {
-    const query = req.query.q; // ?q=apple
+    const rawQuery = (req.query.q || '').trim();
+
+    if (!rawQuery) return res.json([]);
 
     try {
-        const products = await Product.find({
-            name: { $regex: query, $options: 'i' } // case-insensitive search
-        });
+        const Store = require('../models/Store');
+        const stores = await Store.find().lean();
+
+        let searchText = rawQuery.toLowerCase();
+
+        const matchedStore = stores.find(store =>
+            searchText.includes(store.name.toLowerCase())
+        );
+
+        const mongoQuery = {
+            price: { $gt: 0, $lt: 500 }
+        };
+
+        if (matchedStore) {
+            mongoQuery.store = matchedStore._id;
+            searchText = searchText
+                .replace(matchedStore.name.toLowerCase(), '')
+                .trim();
+        }
+
+        const terms = searchText.split(/\s+/).filter(Boolean);
+
+        if (terms.length > 0) {
+            mongoQuery.$and = terms.map(term => ({
+                $or: [
+                    { name: { $regex: term, $options: 'i' } },
+                    { category: { $regex: term, $options: 'i' } },
+                    { aisle: { $regex: term, $options: 'i' } },
+                    { description: { $regex: term, $options: 'i' } }
+                ]
+            }));
+        }
+
+        const products = await Product.find(mongoQuery)
+            .limit(100)
+            .lean();
+
         res.json(products);
+
     } catch (err) {
         console.error('Search error:', err);
         res.status(500).json({ error: 'Search failed' });

@@ -103,7 +103,14 @@ const ProductCarousel = () => {
                 return (
                     <CarouselItem
                         key={product._id}
-                        onClick={() => navigate(`/products/${product._id}`)}
+                        onClick={() => {
+                            if (!product?._id) return;
+                            navigate(`/products/${product._id}`, {
+                                state: {
+                                    deal: item
+                                }
+                            });
+                        }}
                     >
 
                         {/* DEAL BADGE */}
@@ -149,6 +156,8 @@ const ProductCarousel = () => {
                             gap: 4
 
                         }}>
+
+
 
                             <p style={{
 
@@ -197,6 +206,7 @@ const ProductCarousel = () => {
                             </p>
 
                         </div>
+
 
                     </CarouselItem>
                 );

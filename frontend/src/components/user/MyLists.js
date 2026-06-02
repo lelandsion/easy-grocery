@@ -184,7 +184,6 @@ const ModalButton = styled.button`
     }
 `;
 
-
 const TopBar = styled.div`
 
     display: flex;
@@ -268,6 +267,46 @@ const Input = styled.input`
 
 `;
 
+const MiniLoadingBox = styled.div`
+    margin-top: 14px;
+    padding: 18px;
+    border-radius: 14px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 14px;
+    text-align: center;
+`;
+
+const LoadingDots = styled.span`
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 4px;
+
+    span {
+        animation: bounce 1s infinite ease-in-out;
+    }
+
+    span:nth-child(2) {
+        animation-delay: 0.15s;
+    }
+
+    span:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    @keyframes bounce {
+        0%, 80%, 100% {
+            transform: translateY(0);
+            opacity: 0.4;
+        }
+        40% {
+            transform: translateY(-4px);
+            opacity: 1;
+        }
+    }
+`;
+
 const RecommendedCard = styled.div`
     background: #f0fdf4;
     border: 1px solid #bbf7d0;
@@ -328,7 +367,6 @@ const ProductGrid = styled.div`
     gap: 10px;
     margin-top: 12px;
 `;
-
 
 const ListHeader = styled.div`
     display: flex;
@@ -475,7 +513,19 @@ const ListPage = () => {
     const [recommendedList, setRecommendedList] = useState(null);
     const [addingRecommended, setAddingRecommended] = useState(false);
     const [addedRecommendations, setAddedRecommendations] = useState({});
+    const STORE_LINKS = {
 
+        Walmart: "https://www.walmart.ca/en/grocery",
+
+        Costco: "https://www.costco.ca/",
+
+        IGA: "https://www.igastoresbc.com/",
+
+        Loblaws: "https://www.loblaws.ca/",
+
+        "Whole Foods": "https://www.wholefoodsmarket.com/"
+
+    };
 
     const showClickableToast = (message, route = '/account') => {
         toast((t) => (
@@ -500,7 +550,6 @@ const ListPage = () => {
             duration: 5000
         });
     };
-
 
     const handleRemove = async (listId, productId) => {
         const token = localStorage.getItem('token');
@@ -629,7 +678,6 @@ const ListPage = () => {
     };
 
 
-
     /* ================= FETCH LISTS ================= */
 
     useEffect(() => {
@@ -661,23 +709,6 @@ const ListPage = () => {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(async (res) => {
-                if (res.data.length === 0) {
-                    const createRes = await axios.post(
-                        '/api/user/lists',
-                        {
-                            name: 'My Grocery List',
-                            items: []
-                        },
-                        {
-                            headers: { Authorization: `Bearer ${token}` }
-                        }
-                    );
-
-                    const newList = createRes.data.lists[createRes.data.lists.length - 1];
-
-                    setLists([newList]);
-                    return;
-                }
 
                 setLists(res.data);
             })
@@ -733,17 +764,18 @@ const ListPage = () => {
 
     /* ================= FETCH BEST STORE ================= */
 
-
     useEffect(() => {
         const token = localStorage.getItem('token');
-
         if (!token || lists.length === 0) return;
 
-        const fetchBestStores = async () => {
-            const results = {};
+        lists.forEach(async (list) => {
+            if (!list.items || list.items.length === 0) return;
 
-            for (const list of lists) {
-                if (!list.items || list.items.length === 0) continue;
+            const activeView = activeViewMap[list._id] ?? "best";
+
+            // Only fetch best-store when best view is selected
+            if (activeView === "best") {
+                if (Object.prototype.hasOwnProperty.call(bestStoresMap, list._id)) return;
 
                 setLoadingBestMap(prev => ({
                     ...prev,
@@ -756,10 +788,17 @@ const ListPage = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
 
-                    results[list._id] = res.data;
-
+                    setBestStoresMap(prev => ({
+                        ...prev,
+                        [list._id]: Array.isArray(res.data) ? res.data : []
+                    }));
                 } catch (err) {
                     console.error(err);
+
+                    setBestStoresMap(prev => ({
+                        ...prev,
+                        [list._id]: []
+                    }));
                 } finally {
                     setLoadingBestMap(prev => ({
                         ...prev,
@@ -768,25 +807,9 @@ const ListPage = () => {
                 }
             }
 
-            setBestStoresMap(results);
-        };
-
-        fetchBestStores();
-    }, [lists]);
-
-
-    /* ================= FETCH SPLIT ================= */
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-
-        if (!token || lists.length === 0) return;
-
-        const fetchSplits = async () => {
-            const results = {};
-
-            for (const list of lists) {
-                if (!list.items || list.items.length === 0) continue;
+            // Only fetch split when split view is selected
+            if (activeView === "split") {
+                if (Object.prototype.hasOwnProperty.call(splitMap, list._id)) return;
 
                 setLoadingSplitMap(prev => ({
                     ...prev,
@@ -799,10 +822,17 @@ const ListPage = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
 
-                    results[list._id] = res.data;
-
+                    setSplitMap(prev => ({
+                        ...prev,
+                        [list._id]: res.data || null
+                    }));
                 } catch (err) {
                     console.error(err);
+
+                    setSplitMap(prev => ({
+                        ...prev,
+                        [list._id]: null
+                    }));
                 } finally {
                     setLoadingSplitMap(prev => ({
                         ...prev,
@@ -810,12 +840,39 @@ const ListPage = () => {
                     }));
                 }
             }
+        });
+    }, [lists, activeViewMap]);
 
-            setSplitMap(results);
-        };
+    if (loading) {
+        return (
+            <Page>
+                <Header>
+                    <Title>My Shopping Lists</Title>
+                    <Subtitle>Loading your saved lists and price comparisons</Subtitle>
+                </Header>
 
-        fetchSplits();
-    }, [lists]);
+                <Card>
+                    Loading grocery lists
+                    <LoadingDots>
+                        <span>.</span>
+                        <span>.</span>
+                        <span>.</span>
+                    </LoadingDots>
+                </Card>
+
+                <Card>
+                    <MiniLoadingBox>
+                        Comparing prices across stores
+                        <LoadingDots>
+                            <span>.</span>
+                            <span>.</span>
+                            <span>.</span>
+                        </LoadingDots>
+                    </MiniLoadingBox>
+                </Card>
+            </Page>
+        );
+    }
 
     /* ================= AUTH ================= */
 
@@ -836,11 +893,8 @@ const ListPage = () => {
 
     }
 
-    if (loading) return <LoadingBox>Loading...</LoadingBox>;
 
     if (error) return <ErrorBox>{error}</ErrorBox>;
-
-
 
     /* ================= UI ================= */
 
@@ -1002,34 +1056,34 @@ const ListPage = () => {
 
                     {lists.map(list => {
 
-                        const bestStores = bestStoresMap[list._id];
-
-                        const split = splitMap[list._id];
-
-                        const loadingBest = loadingBestMap[list._id];
-
-                        const loadingSplit = loadingSplitMap[list._id];
-
                         const activeView =
-
                             activeViewMap[list._id] ?? "best";
 
+                        const hasBestResult =
+                            Object.prototype.hasOwnProperty.call(bestStoresMap, list._id);
+
+                        const hasSplitResult =
+                            Object.prototype.hasOwnProperty.call(splitMap, list._id);
+
+                        const bestStores = bestStoresMap[list._id] || [];
+
+                        const split = splitMap[list._id] || null;
+
+                        const isComparing =
+                            list.items.length > 0 &&
+                            (
+                                activeView === "best"
+                                    ? loadingBestMap[list._id] || !hasBestResult
+                                    : loadingSplitMap[list._id] || !hasSplitResult
+                            );
+
                         const selectedStoreName =
-
                             selectedStoreMap[list._id] ??
-
                             bestStores?.[0]?.store;
 
-
                         const selectedStore =
-
                             bestStores?.find(s => s.store === selectedStoreName) ||
-
                             bestStores?.[0];
-
-                        const selectedIndex =
-
-                            bestStores?.findIndex(s => s.store === selectedStoreName);
 
                         const storeTotals = bestStores?.map(s => s.total).filter(Boolean) || [];
 
@@ -1060,8 +1114,34 @@ const ListPage = () => {
                                 ? bestSingleStore.total - split.total
                                 : null;
 
-                        return (
+                        const originalTotal =
+                            list.items?.reduce(
+                                (sum, item) =>
+                                    sum + (Number(item.price || 0) * Number(item.quantity || 1)),
+                                0
+                            ) || 0;
 
+                        const savingsVsOriginal =
+                            optimizedTotal != null ? originalTotal - optimizedTotal : null;
+
+                        const useOptimizedProducts =
+                            optimizedTotal != null && optimizedTotal < originalTotal;
+
+                        const productsToShow =
+                            useOptimizedProducts
+                                ? activeView === "split"
+                                    ? split?.products || []
+                                    : selectedStore?.products || []
+                                : list.items || [];
+
+                        const productSectionTitle =
+                            useOptimizedProducts
+                                ? activeView === "split"
+                                    ? "Cheapest Split Items"
+                                    : `${selectedStore?.store} Matched Items`
+                                : "Your Current Items";
+
+                        return (
                             <Card key={list._id}>
 
                                 <IconButton
@@ -1118,138 +1198,144 @@ const ListPage = () => {
 
                                 </div>
 
-                                {activeView === "best" && loadingBest && (
-                                    <LoadingBox>
-                                        Finding best store...
-                                    </LoadingBox>
-                                )}
+                                {isComparing ? (
+                                    <MiniLoadingBox>
+                                        Comparing prices
+                                        <LoadingDots>
+                                            <span>.</span>
+                                            <span>.</span>
+                                            <span>.</span>
+                                        </LoadingDots>
+                                    </MiniLoadingBox>
+                                ) : (
+                                    <>
+                                        {optimizedTotal != null && averageTotal != null && (
+                                            <SavingsSummary>
+                                                <SectionTitle>Savings Summary</SectionTitle>
 
-                                {/* BEST STORE */}
+                                                <SavingsLine>
+                                                    <span>Your selected items</span>
+                                                    <strong>${originalTotal.toFixed(2)}</strong>
+                                                </SavingsLine>
 
-                                {optimizedTotal != null && averageTotal != null && (
-                                    <SavingsSummary>
-                                        <SectionTitle>Savings Summary</SectionTitle>
+                                                <SavingsLine>
+                                                    <span>Optimized total</span>
+                                                    <strong>${Math.min(originalTotal, optimizedTotal).toFixed(2)}</strong>
+                                                </SavingsLine>
 
-                                        <SavingsLine>
-                                            <span>Current total</span>
-                                            <strong>${optimizedTotal.toFixed(2)}</strong>
-                                        </SavingsLine>
+                                                <SavingsLine>
+                                                    <span>Typical cost across all stores</span>
+                                                    <strong>${averageTotal.toFixed(2)}</strong>
+                                                </SavingsLine>
 
-                                        <SavingsLine>
-                                            <span>Typical cost across all stores</span>
-                                            <strong>${averageTotal.toFixed(2)}</strong>
-                                        </SavingsLine>
+                                                {savingsVsOriginal > 0 && (
+                                                    <SavingsHighlight>
+                                                        Saves ${savingsVsOriginal.toFixed(2)} compared to your original selections
+                                                    </SavingsHighlight>
+                                                )}
 
-                                        {savingsVsAverage > 0 && (
-                                            <SavingsHighlight>
-                                                Saves ${savingsVsAverage.toFixed(2)} vs average store pricing
-                                            </SavingsHighlight>
+                                                {savingsVsAverage > 0 && (
+                                                    <SavingsHighlight>
+                                                        Saves ${savingsVsAverage.toFixed(2)} vs average store pricing
+                                                    </SavingsHighlight>
+                                                )}
+
+                                                {activeView === "split" && savingsVsBestSingle > 0 && (
+                                                    <SavingsHighlight>
+                                                        Saves ${savingsVsBestSingle.toFixed(2)} vs best single store
+                                                    </SavingsHighlight>
+                                                )}
+
+                                                <SavingsExplanation>
+                                                    {activeView === "best"
+                                                        ? "Showing the cheapest single-store option. Savings are compared against the average cost across all stores."
+                                                        : "Showing the cheapest combination of stores. Items may be purchased from multiple stores to maximize savings."}
+                                                </SavingsExplanation>
+                                            </SavingsSummary>
                                         )}
 
-                                        {activeView === "split" && savingsVsBestSingle > 0 && (
-                                            <SavingsHighlight>
-                                                Saves ${savingsVsBestSingle.toFixed(2)} vs best single store
-                                            </SavingsHighlight>
+                                        {activeView === "best" && (
+                                            <BestStoreBox>
+                                                {bestStores.length > 0 && (
+                                                    <>
+                                                        <SectionTitle>Store Options</SectionTitle>
+
+                                                        <StoreOptions>
+                                                            {bestStores.slice(0, 3).map((store) => (
+                                                                <PillButton
+                                                                    key={store.storeId || store.store}
+                                                                    $active={store.store === selectedStore?.store}
+                                                                    onClick={() =>
+                                                                        setSelectedStoreMap(prev => ({
+                                                                            ...prev,
+                                                                            [list._id]: store.store
+                                                                        }))
+                                                                    }
+                                                                >
+                                                                    {store.store} (${store.total.toFixed(2)})
+                                                                </PillButton>
+                                                            ))}
+                                                        </StoreOptions>
+                                                    </>
+                                                )}
+
+                                                <SectionTitle style={{ marginTop: 14 }}>
+                                                    {productSectionTitle}
+                                                </SectionTitle>
+
+                                                <ProductGrid>
+                                                    {productsToShow.map((p, index) => (
+                                                        <ProductCard
+                                                            key={`${list._id}-best-${p._id}-${index}`}
+                                                            product={p}
+                                                            listId={list._id}
+                                                            onRemove={(productId) => handleRemove(list._id, productId)}
+                                                        />
+                                                    ))}
+                                                </ProductGrid>
+
+                                                {bestStores.length === 0 && (
+                                                    <MiniLoadingBox>
+                                                        No better single-store match found. Showing your current items.
+                                                    </MiniLoadingBox>
+                                                )}
+                                            </BestStoreBox>
                                         )}
-                                        <SavingsExplanation>
 
-                                            {activeView === "best"
+                                        {activeView === "split" && (
+                                            <BestStoreBox>
+                                                <SectionTitle>{productSectionTitle}</SectionTitle>
 
-                                                ? "Showing the cheapest single-store option. Savings are compared against the average cost across all stores."
+                                                <ProductGrid>
+                                                    {productsToShow.map((p, index) => (
+                                                        <ProductCard
+                                                            key={`${list._id}-split-${p._id}-${index}`}
+                                                            product={p}
+                                                            listId={list._id}
+                                                            onRemove={(productId) => handleRemove(list._id, productId)}
+                                                        />
+                                                    ))}
+                                                </ProductGrid>
 
-                                                : "Showing the cheapest combination of stores. Items may be purchased from multiple stores to maximize savings."}
+                                                <div>
+                                                    Total: ${Math.min(originalTotal, split?.total || originalTotal).toFixed(2)}
+                                                </div>
 
-                                        </SavingsExplanation>
-                                    </SavingsSummary>
-                                )}
-
-                                {activeView === "best" && bestStores?.length > 0 && (
-
-                                    <BestStoreBox>
-                                        <SectionTitle>Store Options</SectionTitle>
-
-                                        <StoreOptions>
-                                            {bestStores.slice(0, 3).map((store, index) => (
-                                                <PillButton
-                                                    key={index}
-                                                    $active={index === selectedIndex}
-                                                    onClick={() =>
-                                                        setSelectedStoreMap(prev => ({
-                                                            ...prev,
-                                                            [list._id]: store.store
-                                                        }))
-                                                    }
-                                                >
-                                                    {store.store} (${store.total.toFixed(2)})
-                                                </PillButton>
-                                            ))}
-                                        </StoreOptions>
-
-                                        {selectedStore?.products?.length > 0 && (
-                                            <ProductGrid>
-                                                {selectedStore.products.map((p, index) => (
-                                                    <ProductCard
-                                                        key={`${list._id}-best-${selectedStore.storeId || selectedStore.store}-${p._id}-${index}`}
-                                                        product={p}
-                                                        listId={list._id}
-                                                        onRemove={(productId) => handleRemove(list._id, productId)}
-                                                    />
-                                                ))}
-                                            </ProductGrid>
+                                                {!split || !useOptimizedProducts ? (
+                                                    <MiniLoadingBox>
+                                                        No cheaper split found. Showing your current items.
+                                                    </MiniLoadingBox>
+                                                ) : null}
+                                            </BestStoreBox>
                                         )}
-                                    </BestStoreBox>
-
+                                    </>
                                 )}
-
-
-                                {activeView === "split" && loadingSplit && (
-                                    <LoadingBox>
-                                        Calculating cheapest split...
-                                    </LoadingBox>
-                                )}
-
-                                {/* SPLIT */}
-
-                                {activeView === "split" && split && (
-
-                                    <BestStoreBox>
-
-                                        <SectionTitle>Cheapest Split</SectionTitle>
-
-                                        <div style={{
-
-                                            display: 'grid',
-
-                                            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-
-                                            gap: 10,
-
-                                            marginTop: 10
-
-                                        }}>
-
-                                            {split.products?.map(p => (
-
-                                                <ProductCard
-
-                                                    key={p._id}
-
-                                                    product={p}
-
-                                                    listId={list._id}
-
-                                                    onRemove={(listItemId) => handleRemove(list._id, listItemId)}
-
-                                                />
-
-                                            ))}
-
-                                        </div>
-
-                                        <div>Total: ${split.total?.toFixed(2)}</div>
-
-                                    </BestStoreBox>
-
+                                {selectedStore?.store && STORE_LINKS[selectedStore.store] && (
+                                    <Button
+                                        onClick={() => window.open(STORE_LINKS[selectedStore.store], "_blank")}
+                                    >
+                                        Shop at {selectedStore.store}
+                                    </Button>
                                 )}
 
                             </Card>
