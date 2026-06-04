@@ -1073,8 +1073,8 @@ const ListPage = () => {
                             list.items.length > 0 &&
                             (
                                 activeView === "best"
-                                    ? loadingBestMap[list._id] || !hasBestResult
-                                    : loadingSplitMap[list._id] || !hasSplitResult
+                                    ? !hasBestResult
+                                    : !hasSplitResult
                             );
 
                         const selectedStoreName =
@@ -1124,22 +1124,29 @@ const ListPage = () => {
                         const savingsVsOriginal =
                             optimizedTotal != null ? originalTotal - optimizedTotal : null;
 
-                        const useOptimizedProducts =
-                            optimizedTotal != null && optimizedTotal < originalTotal;
+                        const splitIsCheaper =
+                            split?.total != null && split.total < originalTotal;
+
+                        const bestStoreHasProducts =
+                            selectedStore?.products?.length > 0;
 
                         const productsToShow =
-                            useOptimizedProducts
-                                ? activeView === "split"
+                            activeView === "best"
+                                ? bestStoreHasProducts
+                                    ? selectedStore.products
+                                    : list.items || []
+                                : splitIsCheaper
                                     ? split?.products || []
-                                    : selectedStore?.products || []
-                                : list.items || [];
+                                    : list.items || [];
 
                         const productSectionTitle =
-                            useOptimizedProducts
-                                ? activeView === "split"
+                            activeView === "best"
+                                ? bestStoreHasProducts
+                                    ? `${selectedStore?.store} Matched Items`
+                                    : "Your Current Items"
+                                : splitIsCheaper
                                     ? "Cheapest Split Items"
-                                    : `${selectedStore?.store} Matched Items`
-                                : "Your Current Items";
+                                    : "Your Current Items";
 
                         return (
                             <Card key={list._id}>
@@ -1320,8 +1327,7 @@ const ListPage = () => {
                                                 <div>
                                                     Total: ${Math.min(originalTotal, split?.total || originalTotal).toFixed(2)}
                                                 </div>
-
-                                                {!split || !useOptimizedProducts ? (
+                                                {!split || !splitIsCheaper ? (
                                                     <MiniLoadingBox>
                                                         No cheaper split found. Showing your current items.
                                                     </MiniLoadingBox>
