@@ -88,6 +88,14 @@ const CardSection = styled.div`
 
 `;
 
+const HeroExplanation = styled.p`
+    margin-top: 14px;
+    max-width: 720px;
+    font-size: 15px;
+    line-height: 1.6;
+    opacity: 0.95;
+`;
+
 const HeroContent = styled.div`
 
     display: flex;
@@ -140,6 +148,16 @@ const HeroButton = styled.button`
 
 `;
 
+const Footer = styled.footer`
+    margin-top: 48px;
+    padding: 24px 0;
+    border-top: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.6;
+`;
+
 const HomePage = () => {
     const navigate = useNavigate();
 
@@ -157,16 +175,18 @@ const HomePage = () => {
                     <HeroText>
 
                         <HeroTitle>
-
                             Find the Best Grocery Deals
-
                         </HeroTitle>
 
-                        <HeroSubtitle>
-
+                        {/*<HeroSubtitle>
                             Compare prices across stores and save money instantly
+                        </HeroSubtitle>*/}
 
-                        </HeroSubtitle>
+                        <HeroExplanation>
+                            Compare prices across stores and save money instantly. BasketWise helps you compare grocery prices across stores, build shopping lists,
+                            and estimate whether one store or a split shopping trip could save you money.
+                            Prices and savings are based on available product data and may vary at checkout.
+                        </HeroExplanation>
 
                     </HeroText>
 
@@ -180,7 +200,7 @@ const HomePage = () => {
 
                             ? 'View Your Lists'
 
-                            : 'Sign In & Create Your First List'}
+                            : 'Sign In & Create Your First List!'}
 
                     </HeroButton>
 
@@ -219,8 +239,25 @@ const HomePage = () => {
                 </CardSection>
 
             </Section>
+            <Footer>
+
+                <div>
+
+                    © 2026 BasketWise. Created by Leland Sion. All rights reserved.
+
+                </div>
+
+                <div>
+
+                    Prices and savings are estimates based on available product data. Final prices, availability, taxes, fees, and product details may vary by retailer.
+
+                </div>
+
+            </Footer>
 
         </Container>
+
+
 
     );
 
