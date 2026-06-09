@@ -1,282 +1,529 @@
-// TODO: remove the categories part and allow for aisles selection for each store
-
-import React from 'react';
-import ProductCarousel from '../product/ProductCarousel';
-import StoreList from '../pages/StoreListPage';
+import React, { useState, useEffect } from 'react';
+import axios from "../../api";
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
-const Container = styled.div`
-    padding: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-`;
 
-const Hero = styled.div`
+
+/* ================= STORE MAP (TEMP FIX) ================= */
+
+const STORE_MAP = {
+    "6732efc8132efbd2898fdc6d": {
+        name: "Costco",
+        logo: "/costco-logo.png"
+    },
+    "6732efc8132efbd2898fdc70": {
+        name: "IGA",
+        logo: "/iga-logo.png"
+    },
+    "6732efc8132efbd2898fdc6f": {
+        name: "Loblaws",
+        logo: "/loblaws-logo.png"
+    },
+    "6732efc8132efbd2898fdc6c": {
+        name: "Walmart",
+        logo: "/walmart-logo.svg"
+    },
+    "6732efc8132efbd2898fdc6e": {
+        name: "Whole Foods",
+        logo: "/whole-foods-market-logo.png"
+    }
+};
+
+/* ================= STYLES ================= */
+
+const Card = styled.div`
     position: relative;
-    overflow: hidden;
-    background: radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 28%),
-    linear-gradient(135deg, #22c55e, #15803d);
-    color: white;
-    padding: 48px 32px;
-    border-radius: 24px;
-    margin-bottom: 32px;
-    box-shadow: 0 18px 45px rgba(21, 128, 61, 0.22);
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #eee;
+    cursor: pointer;
 
-    @media (max-width: 768px) {
-        padding: 36px 22px;
-    }
-`;
-
-const HeroContent = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 32px;
-    position: relative;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-`;
-
-const HeroText = styled.div`
-    flex: 1;
-    max-width: 720px;
-`;
-
-const Eyebrow = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 16px;
-`;
-
-const HeroTitle = styled.h1`
-    font-size: 42px;
-    line-height: 1.08;
-    letter-spacing: -1.2px;
-    margin-bottom: 14px;
-
-    @media (max-width: 768px) {
-        font-size: 34px;
-    }
-`;
-
-const HeroSubtitle = styled.p`
-    font-size: 18px;
-    line-height: 1.55;
-    opacity: 0.95;
-    max-width: 650px;
-    margin-bottom: 18px;
-`;
-
-const HeroPills = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
-`;
-
-const HeroPill = styled.div`
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.16);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 13px;
-    font-weight: 600;
-`;
-
-const HeroActions = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-width: 230px;
+    height: 100%;
+    overflow: visible;
+`;
 
-    @media (max-width: 768px) {
-        width: 100%;
+const ImageWrapper = styled.div`
+    position: relative;
+    z-index: 0;
+`;
+
+const RemoveButton = styled.button`
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 50;
+
+    width: 24px;
+    height: 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 999px;
+
+    color: #555;
+    font-size: 12px;
+    cursor: pointer;
+
+    pointer-events: auto;
+    &:active {
+
+        transform: scale(0.9);
+
+        background: rgba(0, 0, 0, 0.15);
+
+    }
+    
+`;
+
+const Image = styled.img`
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 8px;
+`;
+
+const Title = styled.div`
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+`;
+
+/* ================= STORE BADGE ================= */
+
+const StoreBadge = styled(Link)`
+    position: absolute;
+    top: 8px;
+    left: 8px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.06);
+
+    text-decoration: none;
+    color: #111;
+
+    transition: all 0.15s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.95);
     }
 `;
 
-const HeroButton = styled.button`
-    padding: 14px 20px;
-    border-radius: 999px;
+const StoreLogo = styled.img`
+    width: 16px;
+    height: 16px;
+    object-fit: cover;
+    border-radius: 50%;
+`;
+
+const StoreName = styled.span`
+    font-size: 11px;
+    color: #555;
+`;
+
+/* ================= BUTTON ================= */
+
+const AddButton = styled.button`
+    margin-top: auto;
+    width: 100%;
+    padding: 6px;
+    border-radius: 8px;
     border: none;
-    background: white;
-    color: #15803d;
-    font-weight: 800;
-    cursor: pointer;
-    white-space: nowrap;
-    font-size: 14px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
-    transition: all 0.15s ease;
-
-    &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
-    }
-
-    @media (max-width: 768px) {
-        width: 100%;
-    }
-`;
-
-const SecondaryButton = styled.button`
-    padding: 13px 20px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.35);
-    background: rgba(255,255,255,0.12);
+    background: #22c55e;
     color: white;
-    font-weight: 700;
     cursor: pointer;
-    white-space: nowrap;
-    font-size: 14px;
-    transition: all 0.15s ease;
 
     &:hover {
-        background: rgba(255,255,255,0.18);
-        transform: translateY(-1px);
-    }
-
-    @media (max-width: 768px) {
-        width: 100%;
+        background: #16a34a;
     }
 `;
 
-const Section = styled.section`
-    margin-bottom: 48px;
+const Price = styled.div`
+    font-size: 15px;
+    font-weight: 700;
+    margin-top: 4px;
+    margin-bottom: 10px;
+    color: #111;
 `;
 
-const TitleRow = styled.div`
+/* ================= DROPDOWN ================= */
+
+const Dropdown = styled.div`
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 8px;
+    width: 180px;
+    z-index: 10;
+`;
+
+const ListItem = styled.div`
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-    margin-bottom: 16px;
+    padding: 6px 0;
+    cursor: pointer;
 `;
 
-const TitleGroup = styled.div``;
-
-const Title = styled.h2`
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
+const Checkbox = styled.div`
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid #aaa;
+    background: ${props => (props.$checked ? '#22c55e' : 'white')};
 `;
 
-const SectionSubtitle = styled.p`
+const SmallButton = styled.button`
     margin-top: 6px;
-    color: #6b7280;
-    font-size: 14px;
+    font-size: 12px;
+    background: none;
+    border: none;
+    color: #22c55e;
+    cursor: pointer;
 `;
 
-const CardSection = styled.div`
-    background: white;
-    padding: 20px;
-    border-radius: 18px;
-    border: 1px solid #eee;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+/* ================= COMPONENT ================= */
+
+const Content = styled.div`
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 `;
 
-const Footer = styled.footer`
-    margin-top: 48px;
-    padding: 24px 0;
-    border-top: 1px solid #e5e7eb;
-    color: #6b7280;
-    font-size: 13px;
-    text-align: center;
-    line-height: 1.6;
+const QuantityBadge = styled.div`
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 40;
+
+    background: #111827;
+    color: white;
+    border-radius: 999px;
+    padding: 4px 8px;
+
+    font-size: 12px;
+    font-weight: 700;
 `;
 
-const HomePage = () => {
+const Spacer = styled.div`
+    flex: 1;
+`;
+
+const ProductCard = ({ product, onRemove }) => {
     const navigate = useNavigate();
+
+    const [open, setOpen] = useState(false);
+    const [lists, setLists] = useState([]);
+    const [selected, setSelected] = useState([]);
+    const [creating, setCreating] = useState(false);
+    const [newListName, setNewListName] = useState('');
+    const [loading, setLoading] = useState(false);
+
     const token = localStorage.getItem('token');
 
+    /* ================= STORE RESOLUTION (FIX) ================= */
+
+    const store =
+        typeof product.store === "object"
+            ? product.store
+            : STORE_MAP[product.store];
+
+    /* ================= FETCH LISTS ================= */
+
+    const fetchLists = async () => {
+        if (!token) return;
+
+        try {
+            const res = await axios.get('/api/user/lists', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setLists(res.data || []);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    useEffect(() => {
+        fetchLists();
+    }, []);
+
+    /* ================= CLOSE ON OUTSIDE CLICK ================= */
+
+    useEffect(() => {
+        const handleClick = () => setOpen(false);
+        if (open) document.addEventListener("click", handleClick);
+
+        return () => document.removeEventListener("click", handleClick);
+    }, [open]);
+
+    /* ================= TOGGLE ================= */
+
+    const toggleList = (listId) => {
+        setSelected(prev =>
+            prev.includes(listId)
+                ? prev.filter(id => id !== listId)
+                : [...prev, listId]
+        );
+    };
+
+    /* ================= ADD ================= */
+
+    const addToLists = async () => {
+        if (!token || !product?._id || selected.length === 0) return;
+
+        try {
+            setLoading(true);
+
+            await Promise.all(
+                selected.map(listId => {
+                    if (!listId) return null;
+                    return axios.post(
+                        `/api/user/lists/${listId}/items`,
+                        { productId: product._id },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                })
+            );
+
+            await fetchLists();
+
+            setSelected([]);
+            setOpen(false);
+
+            // ✅ ADD THIS
+            toast((t) => (
+                <div
+                    onClick={() => {
+                        toast.dismiss(t.id);
+                        navigate('/my-lists'); // or your MyLists route
+                    }}
+                    style={{ cursor: 'pointer' }}
+                >
+                    <strong>{product.name} added!</strong>
+                    <div style={{ fontSize: 13, color: '#16a34a' }}>
+                        Click to view your lists →
+                    </div>
+                </div>
+            ), { duration: 5000 });
+
+        } catch (err) {
+            console.error("ADD FAILED:", err.response?.data || err.message);
+
+            // ✅ Optional but very useful
+            toast.error("Failed to add item");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <Container>
-            <Hero>
-                <HeroContent>
-                    <HeroText>
-                        <Eyebrow>Smart grocery shopping</Eyebrow>
+        <Card>
+            {onRemove && (
+                <RemoveButton
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("REMOVING PRODUCT ID:", product._id);
+                        onRemove(product._id);
+                    }}
+                >
+                    ✕
+                </RemoveButton>
+            )}
 
-                        <HeroTitle>
-                            Compare grocery prices before you shop.
-                        </HeroTitle>
+            {product.isDeal && (
 
-                        <HeroSubtitle>
-                            BasketWise helps you build grocery lists, compare prices across stores,
-                            find deals, and estimate whether one store or a split shopping trip could
-                            save you money.
-                        </HeroSubtitle>
+                <div style={{
 
-                        <HeroPills>
-                            <HeroPill>Compare stores</HeroPill>
-                            <HeroPill>Build lists</HeroPill>
-                            <HeroPill>Find deals</HeroPill>
-                            <HeroPill>Estimate savings</HeroPill>
-                        </HeroPills>
-                    </HeroText>
+                    position: 'absolute',
 
-                    <HeroActions>
-                        <HeroButton
-                            onClick={() => navigate(token ? '/my-lists' : '/account')}
+                    top: 8,
+
+                    right: 8,
+
+                    background: '#ef4444',
+
+                    color: 'white',
+
+                    padding: '4px 8px',
+
+                    borderRadius: '6px',
+
+                    fontSize: '11px',
+
+                    fontWeight: 600
+
+                }}>
+
+                    🔥 {Math.round(product.score * 100)}% OFF
+
+                </div>
+
+            )}
+
+            <ImageWrapper>
+                {store && (
+                    <StoreBadge to={`/stores/${product.store}`}>
+                        <StoreLogo src={store.logo} alt={store.name} />
+                        <StoreName>{store.name}</StoreName>
+                    </StoreBadge>
+                )}
+
+                {product.quantity > 1 && (
+                    <QuantityBadge>
+                        × {product.quantity}
+                    </QuantityBadge>
+                )}
+
+                <Image
+                    src={product.image_url}
+                    alt={product.name}
+                    onClick={() => navigate(`/products/${product._id}`)}
+                />
+            </ImageWrapper>
+            <Content>
+                <Title onClick={() => navigate(`/products/${product._id}`)}>
+                    {product.name}
+                </Title>
+                <Spacer />
+                <Price>${Number(product.price).toFixed(2)}</Price>
+            </Content>
+
+
+
+            <AddButton
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (!token) {
+
+                        toast.error("Sign in to create and save grocery lists");
+
+                        navigate("/account");
+
+                        return;
+
+                    }
+
+                    setOpen(true);
+                }}
+            >
+                {token ? "Add to List" : "Sign in to Save"}
+            </AddButton>
+
+            {open && (
+                <Dropdown onClick={(e) => e.stopPropagation()}>
+
+                    {lists.length === 0 && (
+                        <p style={{ fontSize: 12, color: '#888' }}>
+                            No lists found
+                        </p>
+                    )}
+
+                    {lists.map(list => (
+                        <ListItem
+                            key={list._id}
+                            onClick={() => toggleList(list._id)}
                         >
-                            {token ? 'View Your Lists' : 'Create Your First List'}
-                        </HeroButton>
+                            {list.name}
+                            <Checkbox $checked={selected.includes(list._id)} />
+                        </ListItem>
+                    ))}
 
-                        <SecondaryButton onClick={() => navigate('/products')}>
-                            Browse Products
-                        </SecondaryButton>
-                    </HeroActions>
-                </HeroContent>
-            </Hero>
+                    {creating ? (
+                        <>
+                            <input
+                                value={newListName}
+                                onChange={(e) => setNewListName(e.target.value)}
+                                placeholder="List name"
+                                style={{
+                                    width: '100%',
+                                    padding: '6px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #ddd',
+                                    marginTop: '8px'
+                                }}
+                            />
 
-            <Section>
-                <TitleRow>
-                    <TitleGroup>
-                        <Title>Top Deals</Title>
-                        <SectionSubtitle>
-                            Browse products that appear cheaper than similar items in the current data.
-                        </SectionSubtitle>
-                    </TitleGroup>
-                </TitleRow>
+                            <AddButton
+                                onClick={async () => {
+                                    if (!newListName.trim()) return;
 
-                <ProductCarousel title="Top Deals" />
-            </Section>
+                                    await axios.post(
+                                        '/api/user/lists',
+                                        { name: newListName, items: [] },
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                    );
 
-            <Section>
-                <CardSection>
-                    <TitleRow>
-                        <TitleGroup>
-                            <Title>Popular Stores</Title>
-                            <SectionSubtitle>
-                                Compare available grocery products by store.
-                            </SectionSubtitle>
-                        </TitleGroup>
-                    </TitleRow>
+                                    setNewListName('');
+                                    setCreating(false);
+                                    fetchLists();
+                                }}
+                            >
+                                Create
+                            </AddButton>
 
-                    <StoreList />
-                </CardSection>
-            </Section>
+                            <SmallButton onClick={() => setCreating(false)}>
+                                Cancel
+                            </SmallButton>
+                        </>
+                    ) : (
+                        <SmallButton
 
-            <Footer>
-                <div>
-                    © 2026 BasketWise. Created by Leland Sion. All rights reserved.
-                </div>
-                <div>
-                    Prices and savings are estimates based on available product data. Final prices,
-                    availability, taxes, fees, and product details may vary by retailer.
-                </div>
-            </Footer>
-        </Container>
+                            onClick={() => {
+
+                                if (!token) {
+
+                                    toast.error("Sign in to create lists");
+
+                                    navigate("/account");
+
+                                    return;
+
+                                }
+
+                                setCreating(true);
+
+                            }}
+
+                        >
+
+                            + New List
+
+                        </SmallButton>
+                    )}
+
+                    <AddButton
+                        onClick={addToLists}
+                        disabled={selected.length === 0 || loading}
+                    >
+                        {loading ? "Adding..." : "Add Selected"}
+                    </AddButton>
+
+                </Dropdown>
+            )}
+
+        </Card>
     );
 };
 
-export default HomePage;
+export default ProductCard;
