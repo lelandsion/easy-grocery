@@ -6,7 +6,8 @@ let cachedDeals = null;
 let lastUpdated = 0;
 let lastSeed = null;
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const DEAL_LIMIT = 12;
 
 const normalize = (s) =>
     (s || '')
@@ -24,14 +25,16 @@ const getDaySeed = () => {
 const seededScore = (str, seed) => {
     let h = 0;
     const input = `${str}-${seed}`;
+
     for (let i = 0; i < input.length; i++) {
-        h = Math.imul(31, h) + input.charCodeAt(i) | 0;
+        h = (Math.imul(31, h) + input.charCodeAt(i)) | 0;
     }
+
     return Math.abs(h);
 };
 
 const isReasonableDeal = ({ product, avg, savings, score, groupSize }) => {
-    const category = normalize(product.category);
+    const category = normalize(product.category || product.aisle || '');
     const name = normalize(product.name);
 
     if (groupSize < 2) return false;
@@ -68,27 +71,39 @@ const isReasonableDeal = ({ product, avg, savings, score, groupSize }) => {
 };
 
 router.get('/', async (req, res) => {
+    const start = Date.now();
+
     try {
         const seed = getDaySeed();
+        const cacheAge = Date.now() - lastUpdated;
 
         if (
             cachedDeals &&
             lastSeed === seed &&
-            Date.now() - lastUpdated < CACHE_TTL
+            cacheAge < CACHE_TTL
         ) {
+            res.set('X-Deals-Cache', 'HIT');
+            res.set('Cache-Control', 'public, max-age=300');
+
+            console.log(`Deals cache HIT: ${Date.now() - start}ms`);
+
             return res.json(cachedDeals);
         }
+
+        console.log('Deals cache MISS: recalculating...');
 
         const rawProducts = await Product.find(
             {
                 price: { $type: "number", $gt: 0.25, $lt: 100 },
-                name: { $exists: true, $ne: "" }
+                name: { $exists: true, $ne: "" },
+                image_url: { $exists: true, $ne: "" }
             },
             {
                 name: 1,
                 price: 1,
                 image_url: 1,
                 quantity: 1,
+                size_text: 1,
                 category: 1,
                 aisle: 1,
                 store: 1,
@@ -97,45 +112,69 @@ router.get('/', async (req, res) => {
                 unitPrice: 1,
                 unitPriceLabel: 1
             }
-        ).lean();
+        )
+            .lean();
 
-        const groups = {};
+        console.log(`Deals fetched products: ${rawProducts.length}`);
+
+        const groups = Object.create(null);
 
         for (const p of rawProducts) {
             const price = Number(p.price);
+
             if (!Number.isFinite(price)) continue;
 
             const categoryKey = normalize(p.category || p.aisle || 'uncategorized');
             const nameKey = normalize(p.name);
             const quantityKey = normalize(p.quantity || p.size_text || '');
 
+            if (!nameKey) continue;
+
             const key = `${categoryKey}|${nameKey}|${quantityKey}`;
 
             if (!groups[key]) groups[key] = [];
-            groups[key].push({ ...p, price });
+
+            groups[key].push({
+                ...p,
+                price
+            });
         }
 
         const deals = [];
 
-        for (const key in groups) {
+        for (const key of Object.keys(groups)) {
             const group = groups[key];
+
             if (group.length < 2) continue;
 
-            const prices = group.map(p => p.price);
-            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            let total = 0;
+
+            for (const product of group) {
+                total += product.price;
+            }
+
+            const avg = total / group.length;
 
             for (const product of group) {
                 const savings = avg - product.price;
                 const score = savings / avg;
 
-                if (isReasonableDeal({ product, avg, savings, score, groupSize: group.length })) {
+                if (
+                    isReasonableDeal({
+                        product,
+                        avg,
+                        savings,
+                        score,
+                        groupSize: group.length
+                    })
+                ) {
                     deals.push({
                         product,
                         avg,
                         price: product.price,
                         savings,
                         score,
-                        description: `This item is about ${(score * 100).toFixed(0)}% cheaper than similar ${product.category || 'grocery'} items in your data. Average matched price: $${avg.toFixed(2)}.`,
+                        description: `This item is about ${(score * 100).toFixed(0)}% cheaper than similar ${product.category || product.aisle || 'grocery'} items in your data. Average matched price: $${avg.toFixed(2)}.`,
                         dealReason: `Compared against ${group.length} similar item${group.length === 1 ? '' : 's'} using name, category, and quantity.`
                     });
                 }
@@ -146,12 +185,22 @@ router.get('/', async (req, res) => {
             const aSeed = seededScore(a.product._id.toString(), seed);
             const bSeed = seededScore(b.product._id.toString(), seed);
 
-            return (b.score * 100000 - bSeed % 5000) - (a.score * 100000 - aSeed % 5000);
+            return (
+                (b.score * 100000 - (bSeed % 5000)) -
+                (a.score * 100000 - (aSeed % 5000))
+            );
         });
 
-        cachedDeals = deals.slice(0, 30);
+        cachedDeals = deals.slice(0, DEAL_LIMIT);
         lastUpdated = Date.now();
         lastSeed = seed;
+
+        res.set('X-Deals-Cache', 'MISS');
+        res.set('Cache-Control', 'public, max-age=300');
+
+        console.log(
+            `Deals cache MISS complete: ${Date.now() - start}ms, deals=${cachedDeals.length}`
+        );
 
         res.json(cachedDeals);
 
