@@ -6,7 +6,7 @@ import styled from 'styled-components';
 
 // Styled components for store cards
 const StoreListContainer = styled.div`
-    padding: 2em;
+    padding: ${props => props.$compact ? '0' : '2em'};
 `;
 
 const StoreCard = styled(Link)`
@@ -57,7 +57,7 @@ const ErrorMessage = styled.p`
     color: red;
 `;
 
-const StoreListPage = () => {
+const StoreListPage = ({ showTitle = true, compact = false }) => {
     const [stores, setStores] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -80,11 +80,16 @@ const StoreListPage = () => {
     if (error) return <ErrorMessage>{error}</ErrorMessage>;
 
     return (
-        <StoreListContainer>
-            <h2>Available Stores</h2>
+        <StoreListContainer $compact={compact}>
+            {showTitle && <h2>Available Stores</h2>}
             {stores.map(store => (
                 <StoreCard to={`/stores/${store._id}`} key={store._id}>
-                    <StoreLogo src={store.logo || '/path/to/default-logo.png'} alt={`${store.name} logo`} />
+                    <StoreLogo
+                        src={store.logo || '/path/to/default-logo.png'}
+                        alt={`${store.name} logo`}
+                        loading="lazy"
+                        decoding="async"
+                    />
                     <StoreDetails>
                         <StoreName>{store.name}</StoreName>
                         <StoreDescription>{store.description || "No description available."}</StoreDescription>

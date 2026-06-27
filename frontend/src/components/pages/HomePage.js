@@ -1,11 +1,6 @@
-// TODO: remove the categories part and allow for aisles selection for each store
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import ProductCarousel from '../product/ProductCarousel'; // For featured products or deals
-import CategoryList from '../product/Categories'; // For category browsing
 import StoreList from '../pages/StoreListPage'; // For available stores
-import FavoritePage from '../user/Favorites'; // User favorites
-import ListPage from '../user/MyLists'; // User shopping lists
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,35 +15,51 @@ const Container = styled.div`
 `;
 
 const Hero = styled.div`
-
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.26), transparent 30%),
+                linear-gradient(135deg, #22c55e, #16a34a);
     color: white;
-
-    padding: 40px 24px;
-
-    border-radius: 16px;
-
+    padding: 32px;
+    border-radius: 22px;
     margin-bottom: 32px;
+    box-shadow: 0 18px 42px rgba(22, 163, 74, 0.18);
 
+    @media (max-width: 768px) {
+        padding: 22px;
+    }
 `;
 
 const HeroTitle = styled.h1`
+    font-size: 42px;
+    line-height: 1.08;
+    letter-spacing: -1.1px;
+    margin-bottom: 14px;
+    color: white;
 
-    font-size: 32px;
-
-    margin-bottom: 10px;
-
+    @media (max-width: 768px) {
+        font-size: 34px;
+    }
 `;
 
-const HeroSubtitle = styled.p`
-
-  font-size: 16px;
-
-  opacity: 0.9;
-
+const HeroExplanation = styled.p`
+    margin-top: 14px;
+    max-width: 700px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.92);
 `;
 
+const HeroBadge = styled.div`
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+`;
 
 const Section = styled.section`
 
@@ -86,14 +97,6 @@ const CardSection = styled.div`
 
   border: 1px solid #eee;
 
-`;
-
-const HeroExplanation = styled.p`
-    margin-top: 14px;
-    max-width: 720px;
-    font-size: 15px;
-    line-height: 1.6;
-    opacity: 0.95;
 `;
 
 const HeroContent = styled.div`
@@ -148,6 +151,45 @@ const HeroButton = styled.button`
 
 `;
 
+const SecondaryHeroButton = styled.button`
+    padding: 13px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+        background: rgba(255,255,255,0.18);
+    }
+`;
+
+const HeroActions = styled.div`
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+
+    @media (max-width: 768px) {
+        width: 100%;
+
+        ${HeroButton},
+        ${SecondaryHeroButton} {
+            width: 100%;
+        }
+    }
+`;
+
+const SmallDisclaimer = styled.div`
+    margin-top: 12px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+`;
+
 const Footer = styled.footer`
     margin-top: 48px;
     padding: 24px 0;
@@ -160,8 +202,17 @@ const Footer = styled.footer`
 
 const HomePage = () => {
     const navigate = useNavigate();
+    const [showDeals, setShowDeals] = useState(false);
 
     const token = localStorage.getItem('token');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowDeals(true);
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, []);
     return (
 
         <Container>
@@ -173,53 +224,46 @@ const HomePage = () => {
                 <HeroContent>
 
                     <HeroText>
+                        <HeroBadge>Smart grocery shopping</HeroBadge>
 
                         <HeroTitle>
-                            Find the Best Grocery Deals
+                            Compare grocery prices before you shop.
                         </HeroTitle>
 
-                        {/*<HeroSubtitle>
-                            Compare prices across stores and save money instantly
-                        </HeroSubtitle>*/}
-
                         <HeroExplanation>
-                            Compare prices across stores and save money instantly. BasketWise helps you compare grocery prices across stores, build shopping lists,
+                            Build smarter grocery lists, compare prices across stores, find deals,
                             and estimate whether one store or a split shopping trip could save you money.
-                            Prices and savings are based on available product data and may vary at checkout.
                         </HeroExplanation>
-
                     </HeroText>
 
-                    <HeroButton
+                    <HeroActions>
+                        <HeroButton
+                            onClick={() => navigate(token ? '/my-lists' : '/account')}
+                        >
+                            {token ? 'View Your Lists' : 'Create Your First List'}
+                        </HeroButton>
 
-                        onClick={() => navigate(token ? '/my-lists' : '/account')}
-
-                    >
-
-                        {token
-
-                            ? 'View Your Lists'
-
-                            : 'Sign In & Create Your First List!'}
-
-                    </HeroButton>
+                    </HeroActions>
 
                 </HeroContent>
 
             </Hero>
 
+            {/* Removed DisclaimerNote */}
+
             {/* TOP DEALS */}
-
             <Section>
-
                 <TitleRow>
-
                     <Title>Top Deals</Title>
-
                 </TitleRow>
-
-
-                <ProductCarousel title="Top Deals" />
+                {showDeals ? (
+                    <ProductCarousel title="Top Deals" />
+                ) : (
+                    <CardSection>Loading deals...</CardSection>
+                )}
+                <SmallDisclaimer>
+                    Prices and savings are estimates based on available product data and may vary at checkout.
+                </SmallDisclaimer>
             </Section>
 
             {/* STORES */}
@@ -234,7 +278,7 @@ const HomePage = () => {
 
                     </TitleRow>
 
-                    <StoreList />
+                    <StoreList showTitle={false} compact />
 
                 </CardSection>
 
@@ -244,12 +288,6 @@ const HomePage = () => {
                 <div>
 
                     © 2026 BasketWise. Created by Leland Sion. All rights reserved.
-
-                </div>
-
-                <div>
-
-                    Prices and savings are estimates based on available product data. Final prices, availability, taxes, fees, and product details may vary by retailer.
 
                 </div>
 
